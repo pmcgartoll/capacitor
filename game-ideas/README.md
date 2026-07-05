@@ -36,6 +36,24 @@ capability for juice, and accessible touch UI — delivered mobile-first to iOS/
 ideally web). The engine/framework is still an open decision. Deterministic logic is what makes
 hold-to-preview, daily seeds, and async/leaderboard modes cheap across every concept.
 
+## Visual prototypes
+
+Each concept has a rough, self-contained visual prototype in
+[`../prototypes/`](../prototypes/) — open [`prototypes/index.html`](../prototypes/index.html)
+(phone or narrow window is best). They aren't full games; they just convey the *feel* of each
+core loop:
+
+- [`tideturn.html`](../prototypes/tideturn.html) — stage cards, watch the board ghost the result, commit.
+- [`sigil-forge.html`](../prototypes/sigil-forge.html) — hold Spin to preview, chain symbols, draft toward a build.
+- [`pulse.html`](../prototypes/pulse.html) — tap to fire / hold to slow time, build a flow multiplier.
+- [`kismet.html`](../prototypes/kismet.html) — roll, then reroll/nudge/convert/lock the dice; hold Resolve to preview.
+
+Screenshots (also in [`../prototypes/screenshots/`](../prototypes/screenshots/)):
+
+| Tideturn | Sigil Forge | Pulse | Kismet |
+| --- | --- | --- | --- |
+| ![Tideturn](../prototypes/screenshots/tideturn.png) | ![Sigil Forge](../prototypes/screenshots/sigil-forge.png) | ![Pulse](../prototypes/screenshots/pulse.png) | ![Kismet](../prototypes/screenshots/kismet.png) |
+
 ## Suggested next step
 
 Pick the concept whose *core verb* excites you most and build a **single-fight vertical slice**

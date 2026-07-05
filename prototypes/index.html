@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Deckbuilder prototypes — gallery</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;}
+  body{font-family:"Segoe UI",system-ui,sans-serif;background:#0c0d12;color:#e9edf5;min-height:100vh;
+    background:radial-gradient(120% 80% at 50% -10%,#1b2030,#0c0d12 60%);padding:34px 18px 60px;}
+  .wrap{max-width:960px;margin:0 auto;}
+  h1{font-size:30px;margin:0 0 6px;letter-spacing:.02em;}
+  .lede{color:#9aa6bd;font-size:14px;max-width:640px;line-height:1.5;margin:0 0 4px;}
+  .note{color:#6f7c96;font-size:12px;margin:8px 0 26px;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;}
+  a.card{display:block;text-decoration:none;color:inherit;border-radius:18px;overflow:hidden;position:relative;
+    border:1px solid rgba(255,255,255,.08);transition:transform .15s,box-shadow .15s;background:#12141d;}
+  a.card:hover{transform:translateY(-4px);box-shadow:0 16px 40px rgba(0,0,0,.5);}
+  .banner{height:120px;display:flex;align-items:center;justify-content:center;font-size:52px;position:relative;overflow:hidden;}
+  .b1{background:radial-gradient(120% 120% at 30% 10%,#f6f1e6,#cfe7e5 70%,#1f8a8c);color:#0f5d61;}
+  .b2{background:radial-gradient(120% 120% at 30% 10%,#3a2612,#160d06);color:#f0c76a;}
+  .b3{background:linear-gradient(160deg,#1a0538,#05010d);color:#ff3ca6;}
+  .b4{background:radial-gradient(120% 120% at 50% 120%,#7a5333,#3c2515);color:#d9a441;}
+  .meta{padding:14px 16px 18px;}
+  .verb{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#7f8db0;}
+  .name{font-size:20px;font-weight:800;margin:2px 0 6px;}
+  .desc{font-size:13px;color:#aab4cb;line-height:1.45;}
+  .hook{margin-top:10px;font-size:11px;color:#7f8db0;}
+  .hook b{color:#c8d3ea;}
+  .play{position:absolute;top:10px;right:12px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.25);
+    color:#fff;font-size:11px;padding:3px 9px;border-radius:20px;letter-spacing:.05em;}
+  footer{margin-top:34px;color:#59647d;font-size:12px;line-height:1.5;}
+  footer a{color:#8fa0c6;}
+  .tip{margin-top:20px;padding:12px 14px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(255,255,255,.02);
+    font-size:12px;color:#9aa6bd;line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Deckbuilder prototypes</h1>
+  <p class="lede">Four rough, self-contained visual prototypes — one per concept in
+    <code>game-ideas/</code>. They aren't real games: they exist to give a quick feel for each
+    <b>core loop</b> so you can sense which direction is fun.</p>
+  <p class="note">Best viewed on a phone (or a narrow window). Tap a card to open its prototype.</p>
+
+  <div class="grid">
+    <a class="card" href="./tideturn.html">
+      <div class="banner b1">🌊<span class="play">play ▸</span></div>
+      <div class="meta">
+        <div class="verb">Plan</div>
+        <div class="name">Tideturn</div>
+        <div class="desc">Perfect-information tactics. Stage cards and watch the board <b>ghost the exact result</b> before you commit.</div>
+        <div class="hook">Feel for: <b>anti-guessing combat</b> + clear targeting arrows.</div>
+      </div>
+    </a>
+
+    <a class="card" href="./sigil-forge.html">
+      <div class="banner b2">⚙️<span class="play">play ▸</span></div>
+      <div class="meta">
+        <div class="verb">Forge</div>
+        <div class="name">Sigil Forge</div>
+        <div class="desc">A synergy engine you build on purpose. <b>Hold Spin to preview</b>; chain symbols; draft toward your build.</div>
+        <div class="hook">Feel for: <b>steerable synergies</b> (the Landlord fix).</div>
+      </div>
+    </a>
+
+    <a class="card" href="./pulse.html">
+      <div class="banner b3">⚡<span class="play">play ▸</span></div>
+      <div class="meta">
+        <div class="verb">Feel</div>
+        <div class="name">Pulse</div>
+        <div class="desc">Real-time neon juice. Cards flow in; <b>tap to fire, hold to slow time</b> and aim. Build a flow multiplier.</div>
+        <div class="hook">Feel for: <b>shader-forward, one-thumb</b> action.</div>
+      </div>
+    </a>
+
+    <a class="card" href="./kismet.html">
+      <div class="banner b4">🎲<span class="play">play ▸</span></div>
+      <div class="meta">
+        <div class="verb">Press your luck</div>
+        <div class="name">Kismet</div>
+        <div class="desc">Bend the dice. Roll, then <b>reroll / nudge / convert / lock</b> within a budget. <b>Hold Resolve</b> to preview.</div>
+        <div class="hook">Feel for: <b>dice manipulation</b> done for mobile.</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="tip">
+    <b>What to look for in each:</b> does the <i>hold-to-preview</i> remove the "guessing"? Is the
+    core action satisfying even in a greybox? Can you tell who is attacking whom? Which loop makes
+    you want "one more turn"?
+  </div>
+
+  <footer>
+    Rough visual prototypes — not full gameplay. Concept write-ups live in
+    <a href="../game-ideas/">../game-ideas/</a>.
+  </footer>
+</div>
+</body>
+</html>
