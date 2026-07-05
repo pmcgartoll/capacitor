@@ -98,8 +98,8 @@ Directly solving "too easy, beat it first try":
 - Deterministic seeded RNG + pure-function dice resolver (powers preview, dailies, ghost races).
 - Dice physics can be *cosmetic* over a deterministic result (roll animation lands on the
   predetermined face) — keeps logic testable while looking physical.
-- PixiJS/WebGL or a light 3D layer for dice; DOM for menus/glossary; Capacitor for iOS/Android;
-  light backend for leaderboards + ghost seeds.
+- A 2D renderer (or a light 3D layer) for dice; accessible touch UI for menus/glossary;
+  mobile-first delivery to iOS/Android (framework TBD); light backend for leaderboards + ghost seeds.
 
 ## Risks & open questions
 

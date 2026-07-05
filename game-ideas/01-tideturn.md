@@ -97,10 +97,13 @@ To avoid StS's "never drew my archetype" runs:
 
 ## Tech notes
 
-- Deterministic TS combat engine (pure function: `state + queuedActions -> previewState`),
-  which makes the preview *free* — it's just running the engine without animating.
-- PixiJS/WebGL for board + juice; DOM for menus/glossary/accessibility.
-- Capacitor for iOS/Android; runs offline. Daily seeds + leaderboard need only a tiny backend.
+- Deterministic combat engine (pure function: `state + queuedActions -> previewState`),
+  which makes the preview *free* — it's just running the engine without animating. Keep this
+  logic separate from rendering regardless of engine choice.
+- A renderer with strong 2D/shader support for board + juice; accessible, touch-friendly UI for
+  menus/glossary.
+- Mobile-first delivery to iOS/Android (framework TBD); runs offline. Daily seeds + leaderboard
+  need only a tiny backend.
 
 ## Risks & open questions
 

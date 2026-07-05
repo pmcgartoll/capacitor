@@ -30,10 +30,11 @@ this project (Slay the Spire, Balatro, Luck be a Landlord, Slice & Dice, Dice of
 
 ## Shared foundations (why they can share a codebase)
 
-All four assume the same tech spine (see `00`): a **deterministic, seed-driven TypeScript game
-engine** wrapped with **Capacitor** for iOS/Android + web, with **PixiJS/WebGL** for juice and
-DOM/framework UI for touch accessibility. Deterministic logic is what makes hold-to-preview,
-daily seeds, and async/leaderboard modes cheap across every concept.
+All four share the same *constraints* rather than a fixed stack (see `00`): **deterministic,
+seed-driven game logic kept separate from rendering**, a renderer with strong 2D/shader
+capability for juice, and accessible touch UI — delivered mobile-first to iOS/Android (and
+ideally web). The engine/framework is still an open decision. Deterministic logic is what makes
+hold-to-preview, daily seeds, and async/leaderboard modes cheap across every concept.
 
 ## Suggested next step
 

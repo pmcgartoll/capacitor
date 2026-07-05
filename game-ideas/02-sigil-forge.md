@@ -101,10 +101,11 @@ Net effect: variety and surprise remain, but "I literally can't reach my plan" i
 
 ## Tech notes
 
-- Deterministic TS "resolver" that evaluates the board in reading order → payout; the same
-  resolver powers the hold-to-preview (run it, don't animate).
-- PixiJS/WebGL for the board glow/particles; DOM for the draft/forge trays and glossary.
-- Capacitor build; offline-first; daily/leaderboard on a light backend.
+- Deterministic "resolver" that evaluates the board in reading order → payout; the same
+  resolver powers the hold-to-preview (run it, don't animate). Keep it renderer-agnostic.
+- A renderer with strong 2D/shader support for the board glow/particles; accessible touch UI for
+  the draft/forge trays and glossary.
+- Mobile-first delivery (framework TBD); offline-first; daily/leaderboard on a light backend.
 
 ## Risks & open questions
 

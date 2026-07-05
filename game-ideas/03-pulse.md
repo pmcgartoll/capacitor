@@ -90,11 +90,12 @@ between fights you still *build a deck*. The hook is flow-state satisfaction.
 
 ## Tech notes
 
-- Needs a real-time game loop: **PixiJS + a lightweight ECS**, fixed-timestep sim with
-  deterministic seeding so dailies/replays work despite real-time input.
-- Heavy shader/particle budget — profile on mid-range phones early (this is the main tech risk).
-- Haptics via Capacitor plugins; audio via WebAudio with an adaptive-music layer.
-- Capacitor iOS/Android; offline-first; light backend for leaderboards.
+- Needs a real-time game loop: pick an engine with a solid fixed-timestep sim + ECS-style
+  structure, with deterministic seeding so dailies/replays work despite real-time input.
+- Heavy shader/particle budget — profile on mid-range phones early (this is the main tech risk),
+  so favor an engine/renderer with cheap effects.
+- First-class haptics and low-latency adaptive audio are must-haves — weigh engine choices on this.
+- Mobile-first delivery to iOS/Android (framework TBD); offline-first; light backend for leaderboards.
 
 ## Risks & open questions
 

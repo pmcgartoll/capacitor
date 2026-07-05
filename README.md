@@ -1,7 +1,9 @@
 # capacitor
 
-A (planned) mobile-first deckbuilder game, targeting iOS/Android/web via
-[Capacitor](https://capacitorjs.com/).
+> "capacitor" is just a working codename for this project — not a technology choice.
+
+A (planned) mobile-first deckbuilder game, targeting iOS/Android/web. The engine and
+framework are still open (see the design notes for the constraints that matter).
 
 ## Game design ideas
 

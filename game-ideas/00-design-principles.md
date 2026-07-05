@@ -48,14 +48,23 @@ folder is scored against these principles.
 
 ## Tech context
 
-The repo README says `capacitor`, so the assumed target is a **web tech stack wrapped with
-[Capacitor](https://capacitorjs.com/) for iOS/Android** (plus web/PWA). That favors:
+The engine/framework is **still open** — `capacitor` in the repo name is only a codename, not a
+technology decision. Rather than assume a stack, these are the constraints any choice must
+satisfy:
 
-- A web renderer with strong 2D/shader support (e.g. **PixiJS** or a WebGL canvas) for the
-  juice pillar, with UI in the DOM/framework layer where it helps accessibility and touch.
-- Deterministic, seed-driven game logic in TypeScript so runs are replayable, shareable,
-  and testable, and so "daily seed" and async modes are cheap to build.
-- Offline-first single-player; any online mode (leaderboards, async duels) layered on top.
+- **Mobile-first delivery** to iOS/Android (plus ideally web/PWA), with strong touch input,
+  haptics, and offline play. Whatever the engine (a native/cross-platform game engine, or a
+  web renderer, or a hybrid), it must nail phone ergonomics and performance on mid-range devices.
+- **Strong 2D + shader/particle capability** for the juice pillar — pick a renderer that makes
+  hit-stop, particles, and screen effects cheap.
+- **UI that's accessible and touch-friendly** — legible text, large tap targets, no reliance on
+  hover.
+- **Deterministic, seed-driven game logic** kept separate from rendering, so runs are
+  replayable, shareable, and testable, and so "daily seed" and async modes are cheap to build.
+- **Offline-first single-player**; any online mode (leaderboards, async duels) layered on top.
+
+The briefs occasionally name example libraries to illustrate a point, but treat those as
+*options*, not requirements.
 
 ## How to read the concept briefs
 
