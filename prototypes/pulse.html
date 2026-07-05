@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Pulse — prototype</title>
+<style>
+  :root{--pink:#ff3ca6;--cyan:#25e0ff;--purple:#8a4dff;--yellow:#ffe14d;--bg:#0a0217;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{font-family:"Rajdhani","Segoe UI",system-ui,sans-serif;background:#05010d;color:#eaf6ff;
+    display:flex;align-items:center;justify-content:center;min-height:100%;}
+  .phone{position:relative;width:min(430px,100vw);height:min(880px,100vh);overflow:hidden;
+    background:var(--bg);display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.7);}
+  canvas#scene{position:absolute;inset:0;z-index:0;}
+  .backlink{position:absolute;top:12px;right:14px;z-index:20;font-size:11px;color:#9fb;text-decoration:none;border:1px solid #3a5;border-radius:12px;padding:2px 8px;background:rgba(0,0,0,.3);}
+  header{position:relative;z-index:5;padding:12px 18px 0;}
+  .title{font-size:26px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+    background:linear-gradient(90deg,var(--cyan),var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 24px rgba(255,60,166,.4);}
+  .sub{font-size:10px;color:#7fd;letter-spacing:.22em;text-transform:uppercase;}
+
+  .hud{position:relative;z-index:5;display:flex;justify-content:space-between;padding:10px 18px 0;font-size:12px;letter-spacing:.08em;}
+  .flow{text-align:right;}
+  .flow .x{font-size:26px;font-weight:800;color:var(--yellow);text-shadow:0 0 14px rgba(255,225,77,.7);line-height:1;}
+  .flow.big .x{animation:flowpop .3s;}
+  @keyframes flowpop{0%{transform:scale(1)}40%{transform:scale(1.4)}100%{transform:scale(1)}}
+  .hpbar{width:120px;height:9px;border:1px solid var(--cyan);border-radius:6px;overflow:hidden;background:rgba(37,224,255,.1);margin-top:4px;box-shadow:0 0 10px rgba(37,224,255,.4);}
+  .hpfill{height:100%;background:linear-gradient(90deg,var(--cyan),#7ff);transition:width .2s;}
+
+  .spacer{flex:1;position:relative;z-index:5;}
+
+  .dock{position:relative;z-index:6;padding:0 12px 16px;}
+  .energywrap{display:flex;align-items:center;gap:8px;padding:0 4px 8px;}
+  .energylbl{font-size:11px;color:var(--purple);letter-spacing:.14em;text-transform:uppercase;font-weight:700;}
+  .energybar{flex:1;height:12px;border:1px solid var(--purple);border-radius:8px;overflow:hidden;background:rgba(138,77,255,.12);box-shadow:0 0 12px rgba(138,77,255,.4);}
+  .energyfill{height:100%;background:linear-gradient(90deg,var(--purple),var(--pink));transition:width .08s linear;}
+  .hand{display:flex;gap:8px;justify-content:center;align-items:flex-end;height:150px;}
+  .card{width:98px;height:134px;border-radius:14px;position:relative;cursor:pointer;user-select:none;
+    background:linear-gradient(180deg,rgba(30,10,50,.95),rgba(12,3,28,.95));
+    border:1.5px solid var(--cyan);box-shadow:0 0 16px rgba(37,224,255,.35),inset 0 0 18px rgba(37,224,255,.08);
+    padding:9px;display:flex;flex-direction:column;transition:transform .12s;}
+  .card.atk{border-color:var(--pink);box-shadow:0 0 16px rgba(255,60,166,.4),inset 0 0 18px rgba(255,60,166,.08);}
+  .card:active{transform:translateY(3px) scale(.97);}
+  .card.armed{transform:translateY(-14px) scale(1.05);box-shadow:0 0 28px var(--yellow);}
+  .card.empty{opacity:.15;border-style:dashed;pointer-events:none;}
+  .card .cost{position:absolute;top:-9px;left:-6px;width:26px;height:26px;border-radius:50%;background:var(--purple);
+    color:#fff;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 12px var(--purple);}
+  .card .cn{font-size:13px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;}
+  .card .ic{font-size:34px;text-align:center;margin:6px 0;filter:drop-shadow(0 0 8px currentColor);}
+  .card .dv{font-size:11px;color:#bcd;margin-top:auto;letter-spacing:.03em;}
+  .hint{text-align:center;font-size:11px;color:#8ad;letter-spacing:.05em;margin-top:8px;min-height:16px;}
+  .hint b{color:var(--yellow);}
+  .toast{position:absolute;left:50%;top:22%;transform:translateX(-50%);z-index:30;background:rgba(5,1,13,.9);
+    border:1px solid var(--pink);color:#fff;padding:8px 18px;border-radius:20px;font-size:14px;letter-spacing:.08em;
+    opacity:0;transition:opacity .3s;pointer-events:none;text-transform:uppercase;box-shadow:0 0 20px rgba(255,60,166,.4);}
+  .toast.show{opacity:1;}
+  .slowtag{position:absolute;top:44%;left:50%;transform:translate(-50%,-50%);z-index:8;font-size:14px;letter-spacing:.4em;
+    text-transform:uppercase;color:var(--yellow);opacity:0;transition:opacity .15s;pointer-events:none;text-shadow:0 0 16px var(--yellow);}
+  .slowtag.show{opacity:.9;}
+  .footer{position:relative;z-index:5;text-align:center;font-size:9px;color:#456;letter-spacing:.14em;text-transform:uppercase;padding-bottom:4px;}
+</style>
+</head>
+<body>
+<div class="phone" id="phone">
+  <canvas id="scene"></canvas>
+  <a class="backlink" href="./index.html">gallery</a>
+  <header>
+    <div class="title">Pulse</div>
+    <div class="sub">feel · real-time one-thumb juice</div>
+  </header>
+  <div class="hud">
+    <div>
+      <div style="font-size:11px;color:var(--cyan);letter-spacing:.14em;">YOU</div>
+      <div class="hpbar"><div class="hpfill" id="php" style="width:100%"></div></div>
+    </div>
+    <div class="flow" id="flowbox">
+      <div style="font-size:10px;color:#9ab;letter-spacing:.16em;">FLOW</div>
+      <div class="x" id="flowx">x1.0</div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="slowtag" id="slowtag">◄ slow-mo aim ►</div>
+
+  <div class="dock">
+    <div class="energywrap">
+      <span class="energylbl">Energy</span>
+      <div class="energybar"><div class="energyfill" id="energyfill" style="width:0%"></div></div>
+    </div>
+    <div class="hand" id="hand"></div>
+    <div class="hint" id="hint">Cards flow in over time. <b>Tap</b> to fire · <b>hold</b> to slow time & preview.</div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <div class="footer">rough visual prototype — not full gameplay</div>
+</div>
+
+<script>
+(function(){
+  const rnd=(a,b)=>a+Math.random()*(b-a);
+  const pick=a=>a[Math.floor(Math.random()*a.length)];
+  const cv=document.getElementById('scene'), ctx=cv.getContext('2d');
+  let W,H,DPR;
+  function resize(){const r=document.getElementById('phone').getBoundingClientRect();DPR=Math.min(2,window.devicePixelRatio||1);
+    W=r.width;H=r.height;cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+'px';cv.style.height=H+'px';ctx.setTransform(DPR,0,0,DPR,0,0);}
+  window.addEventListener('resize',resize);
+
+  const CARD_LIB=[
+    {id:'bolt',cn:'Bolt',ic:'⚡',cost:20,dmg:7,type:'atk',color:'#ff3ca6',dv:'7 dmg'},
+    {id:'slash',cn:'Slash',ic:'🗡️',cost:35,dmg:12,type:'atk',color:'#ff3ca6',dv:'12 dmg'},
+    {id:'surge',cn:'Surge',ic:'💥',cost:55,dmg:20,type:'atk',color:'#ff3ca6',dv:'20 dmg'},
+    {id:'ward',cn:'Ward',ic:'🛡️',cost:30,type:'def',color:'#25e0ff',dv:'block + slow foe'},
+  ];
+  let player,enemy,energy,energyMax,flow,hand,handMax,flowTimer,cardTimer,shakeT,timeScale,slow,armedIdx;
+  let projectiles=[],parts=[],rings=[],wave=0,waveMax=0;
+
+  function spawnEnemy(n){
+    const hp=16+n*8;
+    enemy={name:'Node '+n,hp,max:hp,windup:0,windupMax:rnd(3.2,4.2),dmg:6+n,scale:1,hitFlash:0,x:W/2,y:H*0.30,n};
+  }
+  function init(){
+    player={hp:40,max:40}; energy=30; energyMax=100; flow=1; hand=[]; handMax=4;
+    flowTimer=0; cardTimer=0; shakeT=0; timeScale=1; slow=false; armedIdx=-1; wave=1;
+    projectiles=[];parts=[];rings=[];
+    for(let i=0;i<3;i++) drawCard();
+    spawnEnemy(1);
+    renderHand();
+  }
+  function drawCard(){ if(hand.length>=handMax) return; hand.push({...pick(CARD_LIB),uid:Math.random()}); renderHand(); }
+
+  // ---- hand DOM ----
+  const handEl=document.getElementById('hand');
+  function renderHand(){
+    handEl.innerHTML='';
+    for(let i=0;i<handMax;i++){
+      const c=hand[i];
+      const el=document.createElement('div');
+      if(!c){ el.className='card empty'; handEl.appendChild(el); continue; }
+      el.className='card '+(c.type==='atk'?'atk':'')+(armedIdx===i?' armed':'');
+      el.innerHTML=`<div class="cost">${c.cost}</div><div class="cn">${c.cn}</div>
+        <div class="ic" style="color:${c.color}">${c.ic}</div><div class="dv">${c.dv}</div>`;
+      bindCard(el,i);
+      handEl.appendChild(el);
+    }
+    document.getElementById('energyfill').style.width=(100*energy/energyMax)+'%';
+  }
+  function bindCard(el,i){
+    let held=null;
+    el.addEventListener('pointerdown',e=>{ e.preventDefault(); armedIdx=i; renderHand();
+      held=setTimeout(()=>{ enterSlow(); },160);
+    });
+    const up=()=>{ clearTimeout(held);
+      if(slow) exitSlow();
+      const idx=hand.findIndex(c=>c&&armedIdx>-1&&c===hand[armedIdx]);
+      playCard(armedIdx); armedIdx=-1; renderHand();
+    };
+    el.addEventListener('pointerup',up);
+    el.addEventListener('pointerleave',()=>{clearTimeout(held); if(slow){exitSlow();} armedIdx=-1; renderHand();});
+  }
+  function enterSlow(){ slow=true; timeScale=0.14; document.getElementById('slowtag').classList.add('show');
+    const c=hand[armedIdx]; if(c) setHint(`<b>${c.cn}</b> — ${c.type==='atk'?('would deal '+Math.round(c.dmg*flow)+' at flow x'+flow.toFixed(1)):'block + slow the node'}`);}
+  function exitSlow(){ slow=false; timeScale=1; document.getElementById('slowtag').classList.remove('show'); setHint(baseHint);}
+
+  function playCard(i){
+    const c=hand[i]; if(!c) return;
+    if(energy<c.cost){ toast('need energy'); flowBreak(); return; }
+    energy-=c.cost;
+    hand.splice(i,1);
+    if(c.type==='atk'){
+      fireProjectile(c);
+    } else {
+      player.block=(player.block||0)+8; enemy.windup=Math.max(0,enemy.windup-1.4);
+      ring(W/2,H-150,'#25e0ff'); toast('warded'); addFlow(.2);
+    }
+    renderHand();
+  }
+
+  function fireProjectile(c){
+    projectiles.push({x:W/2,y:H-150,tx:enemy.x,ty:enemy.y,c,color:c.color,t:0});
+  }
+
+  function addFlow(a){ flow=Math.min(9.9,flow+a); pulseFlow(); }
+  function flowBreak(){ flow=1; document.getElementById('flowx').textContent='x1.0'; }
+  function pulseFlow(){ document.getElementById('flowx').textContent='x'+flow.toFixed(1);
+    const b=document.getElementById('flowbox'); b.classList.remove('big'); void b.offsetWidth; b.classList.add('big'); }
+
+  function hitEnemy(dmg){
+    enemy.hp-=dmg; enemy.hitFlash=1; enemy.scale=1.25; shakeT=.25;
+    for(let k=0;k<16;k++)parts.push({x:enemy.x,y:enemy.y,vx:rnd(-4,4),vy:rnd(-4,4),life:1,c:pick(['#ff3ca6','#ffe14d','#25e0ff'])});
+    ring(enemy.x,enemy.y,'#ff3ca6');
+    floatText(enemy.x,enemy.y-30,'-'+dmg,'#ffe14d');
+    addFlow(.3);
+    if(enemy.hp<=0){ killEnemy(); }
+  }
+  function killEnemy(){
+    for(let k=0;k<40;k++)parts.push({x:enemy.x,y:enemy.y,vx:rnd(-7,7),vy:rnd(-7,7),life:1,c:pick(['#ff3ca6','#ffe14d','#25e0ff','#8a4dff'])});
+    ring(enemy.x,enemy.y,'#ffe14d'); ring(enemy.x,enemy.y,'#ff3ca6');
+    toast('node cleared  +'+wave+' bonus'); energy=Math.min(energyMax,energy+20);
+    wave++; spawnEnemy(wave);
+  }
+  function enemyAttack(){
+    const blk=player.block||0; const net=Math.max(0,enemy.dmg-blk); player.block=0;
+    if(net>0){ player.hp=Math.max(0,player.hp-net); shakeT=.4; flowBreak();
+      floatText(W/2,H-170,'-'+net,'#ff3ca6'); redFlash();
+      document.getElementById('php').style.width=(100*player.hp/player.max)+'%';
+    } else { toast('blocked'); }
+    enemy.windup=0; enemy.windupMax=rnd(3.0,4.2);
+    if(player.hp<=0){ toast('overloaded — restarting'); setTimeout(init,900); }
+  }
+
+  // ---- effects ----
+  function ring(x,y,color){rings.push({x,y,r:6,color,life:1});}
+  let floats=[];
+  function floatText(x,y,txt,color){floats.push({x,y,txt,color,life:1});}
+  function redFlash(){document.getElementById('phone').animate([{filter:'brightness(1.8) hue-rotate(-20deg)'},{filter:'brightness(1)'}],{duration:200});}
+
+  // ---- main loop ----
+  let last=0;
+  function loop(ts){
+    const dtReal=Math.min(.05,(ts-last)/1000||0); last=ts;
+    const dt=dtReal*timeScale;
+    // energy regen (real time so slow-mo doesn't cheat energy)
+    energy=Math.min(energyMax,energy+dtReal*22);
+    // card cadence
+    cardTimer+=dtReal; if(cardTimer>1.6){cardTimer=0; drawCard();}
+    // enemy windup
+    if(enemy){ enemy.windup+=dt; if(enemy.windup>=enemy.windupMax) enemyAttack();
+      enemy.scale+=(1-enemy.scale)*.15; enemy.hitFlash*=.85; }
+    // projectiles
+    projectiles.forEach(p=>{ p.t+=dt*3.2; });
+    projectiles=projectiles.filter(p=>{ if(p.t>=1){ hitEnemy(Math.round(p.c.dmg*flow)); return false;} return true;});
+    // parts
+    parts.forEach(p=>{p.x+=p.vx*timeScale;p.y+=p.vy*timeScale;p.vy+=.12*timeScale;p.life-=.02;});
+    parts=parts.filter(p=>p.life>0);
+    rings.forEach(r=>{r.r+=6;r.life-=.05;}); rings=rings.filter(r=>r.life>0);
+    floats.forEach(f=>{f.y-=1.2;f.life-=.02;}); floats=floats.filter(f=>f.life>0);
+    if(shakeT>0)shakeT-=dtReal;
+    // decay flow slowly
+    flow=Math.max(1,flow-dtReal*0.12); document.getElementById('flowx').textContent='x'+flow.toFixed(1);
+    document.getElementById('energyfill').style.width=(100*energy/energyMax)+'%';
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  function render(){
+    ctx.clearRect(0,0,W,H);
+    // bg gradient
+    const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#1a0538');g.addColorStop(.5,'#0a0217');g.addColorStop(1,'#05010d');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    let sx=0,sy=0; if(shakeT>0){sx=rnd(-6,6)*shakeT*3;sy=rnd(-6,6)*shakeT*3;}
+    ctx.save(); ctx.translate(sx,sy);
+    // sun
+    const cx=W/2,hy=H*0.42;
+    const sun=ctx.createLinearGradient(0,hy-90,0,hy+10);sun.addColorStop(0,'#ffe14d');sun.addColorStop(.5,'#ff3ca6');sun.addColorStop(1,'#8a4dff');
+    ctx.fillStyle=sun;ctx.beginPath();ctx.arc(cx,hy-30,70,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#0a0217';for(let i=0;i<6;i++){ctx.fillRect(cx-80,hy-70+i*16,160,6);}
+    // perspective grid
+    ctx.strokeStyle='rgba(37,224,255,.35)';ctx.lineWidth=1.5;
+    for(let i=-8;i<=8;i++){ctx.beginPath();ctx.moveTo(cx+i*14,hy);ctx.lineTo(cx+i*90,H);ctx.stroke();}
+    for(let i=0;i<12;i++){const yy=hy+Math.pow(i/12,2)*(H-hy);ctx.globalAlpha=.5;ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(W,yy);ctx.stroke();}
+    ctx.globalAlpha=1;
+    // slow-mo tint
+    if(slow){ctx.fillStyle='rgba(255,225,77,.06)';ctx.fillRect(-sx,-sy,W,H);}
+    // enemy
+    if(enemy){
+      ctx.save();ctx.translate(enemy.x,enemy.y);ctx.scale(enemy.scale,enemy.scale);
+      ctx.shadowColor='#ff3ca6';ctx.shadowBlur=30;
+      ctx.fillStyle=enemy.hitFlash>.3?'#fff':'#ff3ca6';
+      ctx.beginPath();for(let i=0;i<6;i++){const a=i/6*Math.PI*2-Math.PI/2;const r=34;ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);}ctx.closePath();ctx.fill();
+      ctx.shadowBlur=0;ctx.fillStyle='#1a0538';ctx.beginPath();ctx.arc(0,0,12,0,7);ctx.fill();
+      ctx.restore();
+      // hp bar
+      const bw=90; ctx.fillStyle='rgba(0,0,0,.4)';ctx.fillRect(enemy.x-bw/2,enemy.y-58,bw,7);
+      ctx.fillStyle='#ff3ca6';ctx.fillRect(enemy.x-bw/2,enemy.y-58,bw*Math.max(0,enemy.hp)/enemy.max,7);
+      // windup (telegraph)
+      const wpad=enemy.windup/enemy.windupMax; ctx.fillStyle='rgba(0,0,0,.4)';ctx.fillRect(enemy.x-bw/2,enemy.y+44,bw,6);
+      ctx.fillStyle=wpad>.75?'#ffe14d':'#ffb84d';ctx.fillRect(enemy.x-bw/2,enemy.y+44,bw*wpad,6);
+      ctx.fillStyle='#ffb84d';ctx.font='700 10px Rajdhani,sans-serif';ctx.textAlign='center';
+      ctx.fillText('⚔ '+enemy.dmg+(wpad>.85?'  INCOMING!':''),enemy.x,enemy.y+40);
+      // telegraph arrow to player when charged
+      if(wpad>.6){ctx.strokeStyle=`rgba(255,60,166,${(wpad-.6)/.4})`;ctx.lineWidth=2;ctx.setLineDash([6,6]);
+        ctx.beginPath();ctx.moveTo(enemy.x,enemy.y+54);ctx.lineTo(W/2,H-160);ctx.stroke();ctx.setLineDash([]);}
+    }
+    // player node
+    ctx.save();ctx.translate(W/2,H-150);ctx.shadowColor='#25e0ff';ctx.shadowBlur=24;ctx.fillStyle='#25e0ff';
+    ctx.beginPath();ctx.moveTo(0,-22);ctx.lineTo(20,16);ctx.lineTo(-20,16);ctx.closePath();ctx.fill();
+    if(player.block){ctx.strokeStyle='#7ff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,30,0,7);ctx.stroke();}
+    ctx.restore();
+    // projectiles
+    projectiles.forEach(p=>{const x=p.x+(p.tx-p.x)*p.t,y=p.y+(p.ty-p.y)*p.t;
+      ctx.shadowColor=p.color;ctx.shadowBlur=20;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(x,y,7,0,7);ctx.fill();
+      ctx.globalAlpha=.4;ctx.beginPath();ctx.arc(p.x+(p.tx-p.x)*Math.max(0,p.t-.08),p.y+(p.ty-p.y)*Math.max(0,p.t-.08),5,0,7);ctx.fill();ctx.globalAlpha=1;});
+    ctx.shadowBlur=0;
+    // rings
+    rings.forEach(r=>{ctx.globalAlpha=Math.max(0,r.life);ctx.strokeStyle=r.color;ctx.lineWidth=3;ctx.beginPath();ctx.arc(r.x,r.y,r.r,0,7);ctx.stroke();});ctx.globalAlpha=1;
+    // parts
+    parts.forEach(p=>{ctx.globalAlpha=Math.max(0,p.life);ctx.fillStyle=p.c;ctx.fillRect(p.x,p.y,3,3);});ctx.globalAlpha=1;
+    // floats
+    floats.forEach(f=>{ctx.globalAlpha=Math.max(0,f.life);ctx.fillStyle=f.color;ctx.font='800 22px Rajdhani,sans-serif';ctx.textAlign='center';ctx.fillText(f.txt,f.x,f.y);});ctx.globalAlpha=1;
+    ctx.restore();
+  }
+
+  let toastT;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),1200);}
+  const baseHint='Cards flow in over time. <b>Tap</b> to fire · <b>hold</b> to slow time & preview.';
+  function setHint(h){document.getElementById('hint').innerHTML=h;}
+
+  window.addEventListener('load',()=>{resize();init();requestAnimationFrame(loop);});
+})();
+</script>
+</body>
+</html>

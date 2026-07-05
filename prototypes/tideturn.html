@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Tideturn — prototype</title>
+<style>
+  :root{
+    --paper:#efe9dc; --paper2:#e3dccb; --ink:#20242b; --ink2:#4c5560;
+    --tide:#1f8a8c; --tide-deep:#0f5d61; --danger:#b7472f; --gold:#c99b3f;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{
+    font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    background:#22252b; color:var(--ink);
+    display:flex; align-items:center; justify-content:center; min-height:100%;
+  }
+  .phone{
+    position:relative; width:min(430px,100vw); height:min(880px,100vh); overflow:hidden;
+    background:
+      radial-gradient(120% 80% at 50% -10%, #f6f1e6, var(--paper) 55%, var(--paper2) 100%);
+    display:flex; flex-direction:column;
+    box-shadow:0 20px 60px rgba(0,0,0,.5);
+  }
+  /* subtle paper texture via layered noise */
+  .phone::before{
+    content:""; position:absolute; inset:0; pointer-events:none; opacity:.06;
+    background-image:radial-gradient(circle at 20% 30%, #000 0 1px, transparent 1px),
+      radial-gradient(circle at 70% 60%, #000 0 1px, transparent 1px);
+    background-size:7px 7px, 11px 11px;
+  }
+  header{padding:14px 18px 6px; display:flex; justify-content:space-between; align-items:flex-end;}
+  header .title{font-size:22px; letter-spacing:.06em; font-weight:700;}
+  header .sub{font-size:11px; color:var(--ink2); letter-spacing:.16em; text-transform:uppercase;}
+  .turnband{font-size:11px; color:var(--tide-deep); letter-spacing:.14em; text-transform:uppercase;}
+
+  .arena{flex:1; position:relative; padding:6px 16px;}
+  #fx{position:absolute; inset:0; pointer-events:none; z-index:6;}
+
+  .enemies{display:flex; gap:12px; justify-content:center; margin-top:8px;}
+  .enemy{
+    position:relative; width:96px; border:1.5px solid var(--ink); border-radius:14px;
+    background:linear-gradient(180deg,#fbf7ee,#e7dfcd); padding:8px 6px 10px; text-align:center;
+    box-shadow:0 4px 0 rgba(0,0,0,.08);
+    transition:transform .12s;
+  }
+  .enemy.dead{opacity:.25; filter:grayscale(1); transform:scale(.9) translateY(6px);}
+  .enemy .glyph{font-size:34px; line-height:1; margin:2px 0 4px;}
+  .enemy .name{font-size:12px; letter-spacing:.04em;}
+  .intent{
+    position:absolute; top:-14px; left:50%; transform:translateX(-50%);
+    display:flex; align-items:center; gap:3px; font-size:12px; font-weight:700;
+    color:#fff; background:var(--danger); padding:2px 8px; border-radius:20px; white-space:nowrap;
+    box-shadow:0 2px 5px rgba(0,0,0,.25);
+  }
+  .hpwrap{margin-top:6px;}
+  .hpbar{height:8px; border:1px solid var(--ink); border-radius:6px; overflow:hidden; background:#d8cfbc;}
+  .hpfill{height:100%; background:linear-gradient(90deg,var(--danger),#d76a4f); transition:width .35s;}
+  .hpfill.ghost{position:absolute;}
+  .hpnum{font-size:11px; color:var(--ink2); margin-top:2px;}
+  .hp-ghost-text{color:var(--tide-deep); font-weight:700;}
+  .selectable{cursor:pointer;}
+  .enemy.targeted{transform:translateY(-4px); box-shadow:0 0 0 3px var(--tide), 0 6px 14px rgba(15,93,97,.4);}
+
+  /* targeting arrow drawn as SVG overlay */
+  #wires{position:absolute; inset:0; z-index:5; pointer-events:none;}
+
+  .hero{
+    margin:auto auto 4px; width:150px; text-align:center; position:relative;
+  }
+  .hero .body{
+    border:1.5px solid var(--ink); border-radius:14px; padding:8px;
+    background:linear-gradient(180deg,#eaf5f4,#cfe7e5);
+  }
+  .hero .glyph{font-size:40px;}
+  .hero .name{font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--tide-deep);}
+  .incoming{
+    font-size:12px; margin-top:6px; color:var(--danger); font-weight:700;
+  }
+  .incoming b{color:var(--tide-deep);}
+
+  /* bottom control zone (thumb) */
+  .dock{background:linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,.05)); padding:6px 10px 14px;}
+  .status{display:flex; justify-content:space-between; font-size:11px; color:var(--ink2);
+    letter-spacing:.08em; text-transform:uppercase; padding:0 6px 6px;}
+  .energy{color:var(--tide-deep); font-weight:700;}
+  .hand{display:flex; gap:8px; justify-content:center; align-items:flex-end; height:150px;}
+  .card{
+    width:96px; height:132px; border:1.5px solid var(--ink); border-radius:12px;
+    background:linear-gradient(180deg,#fdfaf3,#eee6d5); position:relative;
+    padding:8px 8px 6px; cursor:pointer; user-select:none;
+    box-shadow:0 5px 0 rgba(0,0,0,.10);
+    transition:transform .14s, box-shadow .14s;
+    display:flex; flex-direction:column;
+  }
+  .card:active{transform:translateY(2px);}
+  .card.sel{transform:translateY(-16px) scale(1.04); box-shadow:0 0 0 3px var(--tide),0 12px 20px rgba(15,93,97,.35);}
+  .card.spent{opacity:.32; pointer-events:none;}
+  .card .cost{position:absolute; top:-8px; left:-8px; width:26px; height:26px; border-radius:50%;
+    background:var(--tide); color:#fff; font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:center;
+    border:1.5px solid var(--ink);}
+  .card .cname{font-size:12px; font-weight:700; letter-spacing:.02em; padding-left:18px;}
+  .card .art{font-size:30px; text-align:center; margin:6px 0 4px;}
+  .card .desc{font-size:10px; line-height:1.25; color:var(--ink2); margin-top:auto;}
+  .card .tag{font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--tide-deep);}
+
+  .actions{display:flex; gap:10px; margin-top:10px; align-items:center;}
+  .hint{flex:1; font-size:11px; color:var(--ink2); line-height:1.3;}
+  .btn{
+    border:1.5px solid var(--ink); border-radius:30px; padding:12px 18px; font:inherit;
+    font-weight:700; letter-spacing:.06em; background:#fff; cursor:pointer; text-transform:uppercase; font-size:13px;
+  }
+  .btn.commit{background:var(--tide); color:#fff;}
+  .btn.commit:disabled{opacity:.4; background:#9fb7b6;}
+  .btn.ghost{background:transparent;}
+  .previewpill{
+    position:absolute; z-index:7; background:var(--tide-deep); color:#fff; font-size:11px; font-weight:700;
+    padding:3px 8px; border-radius:14px; transform:translate(-50%,-140%); pointer-events:none; white-space:nowrap;
+    box-shadow:0 2px 6px rgba(0,0,0,.3);
+  }
+  .toast{position:absolute; left:50%; top:14%; transform:translateX(-50%); z-index:9;
+    background:var(--ink); color:var(--paper); padding:8px 16px; border-radius:20px; font-size:13px;
+    letter-spacing:.05em; opacity:0; transition:opacity .3s; pointer-events:none;}
+  .toast.show{opacity:1;}
+  .footer{position:absolute; bottom:4px; left:0; right:0; text-align:center; font-size:9px; color:var(--ink2); letter-spacing:.14em; text-transform:uppercase;}
+  .backlink{position:absolute; top:12px; right:14px; z-index:12; font-size:11px; color:var(--ink2); text-decoration:none; border:1px solid var(--ink2); border-radius:12px; padding:2px 8px;}
+  @keyframes hitpop{0%{transform:scale(1)}30%{transform:scale(1.12) rotate(-2deg)}100%{transform:scale(1)}}
+  .hit{animation:hitpop .28s;}
+</style>
+</head>
+<body>
+<div class="phone" id="phone">
+  <a class="backlink" href="./index.html">gallery</a>
+  <header>
+    <div>
+      <div class="title">Tideturn</div>
+      <div class="sub">plan · the perfect-information tactics deckbuilder</div>
+    </div>
+    <div class="turnband" id="turnband">Your turn</div>
+  </header>
+
+  <div class="arena" id="arena">
+    <svg id="wires"></svg>
+    <div class="enemies" id="enemies"></div>
+    <div class="hero" id="hero">
+      <div class="body">
+        <div class="glyph">🌊</div>
+        <div class="name">Tide-caller</div>
+        <div class="hpwrap">
+          <div class="hpbar"><div class="hpfill" id="heroHp" style="width:100%"></div></div>
+          <div class="hpnum" id="heroHpNum">40 / 40</div>
+        </div>
+      </div>
+      <div class="incoming" id="incoming"></div>
+    </div>
+    <canvas id="fx"></canvas>
+  </div>
+
+  <div class="dock">
+    <div class="status">
+      <span>Block <b id="blockNum">0</b></span>
+      <span class="energy">Energy <b id="energyNum">3</b>/3</span>
+    </div>
+    <div class="hand" id="hand"></div>
+    <div class="actions">
+      <div class="hint" id="hint">Tap a card, then tap a target. The board <b>ghosts the exact result</b> before you commit.</div>
+      <button class="btn ghost" id="undoBtn">Undo</button>
+      <button class="btn commit" id="commitBtn" disabled>Commit</button>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <div class="footer">rough visual prototype — not full gameplay</div>
+</div>
+
+<script>
+(function(){
+  const rnd = (a,b)=>a+Math.random()*(b-a);
+  // ---- state ----
+  let hero, enemies, hand, energy, block, staged, resolving;
+  const cardLib = [
+    {id:'strike', name:'Riptide', cost:1, art:'🗡️', tag:'Attack', dmg:6, desc:'Deal 6 damage.'},
+    {id:'crash', name:'Breaker', cost:2, art:'💥', tag:'Attack', dmg:11, desc:'Deal 11 damage.'},
+    {id:'guard', name:'Seawall', cost:1, art:'🛡️', tag:'Skill', block:7, desc:'Gain 7 Block.'},
+    {id:'twin', name:'Undertow', cost:1, art:'🌀', tag:'Attack', dmg:4, hits:2, desc:'Deal 4 damage twice.'},
+  ];
+  function freshEnemies(){
+    return [
+      {name:'Brinefiend', glyph:'🦑', hp:18, max:18, intent:{type:'atk',val:9}},
+      {name:'Reefjaw', glyph:'🦈', hp:14, max:14, intent:{type:'atk',val:6}},
+      {name:'Coralite', glyph:'🐚', hp:10, max:10, intent:{type:'block',val:8}},
+    ];
+  }
+  function deal(){
+    const h=[];
+    for(let i=0;i<4;i++){ h.push({...cardLib[Math.floor(rnd(0,cardLib.length))], uid:i+'-'+Math.random()}); }
+    // guarantee at least one attack + the guard
+    h[0]={...cardLib[0],uid:'a'+Math.random()};
+    h[3]={...cardLib[2],uid:'g'+Math.random()};
+    return h;
+  }
+  function init(){
+    hero={hp:40,max:40};
+    enemies=freshEnemies();
+    hand=deal();
+    energy=3; block=0; staged=[]; resolving=false;
+    render(); renderHand(); updatePreview();
+  }
+
+  // ---- rendering ----
+  const enemiesEl=document.getElementById('enemies');
+  const handEl=document.getElementById('hand');
+  let selected=null;
+
+  function render(){
+    enemiesEl.innerHTML='';
+    enemies.forEach((e,i)=>{
+      const dead=e.hp<=0;
+      const el=document.createElement('div');
+      el.className='enemy'+(dead?' dead':'')+(!dead?' selectable':'');
+      el.dataset.i=i;
+      const intentTxt = e.intent.type==='atk'? '⚔ '+e.intent.val : '🛡 '+e.intent.val;
+      el.innerHTML=`
+        ${dead?'':`<div class="intent">${intentTxt}</div>`}
+        <div class="glyph">${e.glyph}</div>
+        <div class="name">${e.name}</div>
+        <div class="hpwrap">
+          <div class="hpbar"><div class="hpfill" style="width:${100*Math.max(0,e.hp)/e.max}%"></div></div>
+          <div class="hpnum" data-hp>${Math.max(0,e.hp)} / ${e.max}</div>
+        </div>`;
+      if(!dead) el.addEventListener('click',()=>onTarget(i));
+      enemiesEl.appendChild(el);
+    });
+    document.getElementById('heroHp').style.width=(100*hero.hp/hero.max)+'%';
+    document.getElementById('heroHpNum').textContent=hero.hp+' / '+hero.max;
+    document.getElementById('blockNum').textContent=block;
+    document.getElementById('energyNum').textContent=energy;
+  }
+
+  function renderHand(){
+    handEl.innerHTML='';
+    hand.forEach((c)=>{
+      const el=document.createElement('div');
+      const spent = staged.some(s=>s.uid===c.uid);
+      el.className='card'+(selected===c.uid?' sel':'')+(spent?' spent':'');
+      const line = c.dmg? `Deal ${c.dmg}${c.hits?(' ×'+c.hits):''} dmg` : (c.block?`Gain ${c.block} Block`:'');
+      el.innerHTML=`<div class="cost">${c.cost}</div>
+        <div class="cname">${c.name}</div>
+        <div class="art">${c.art}</div>
+        <div class="tag">${c.tag}</div>
+        <div class="desc">${c.desc}</div>`;
+      el.addEventListener('click',()=>selectCard(c));
+      handEl.appendChild(el);
+    });
+  }
+
+  function selectCard(c){
+    if(resolving) return;
+    if(staged.some(s=>s.uid===c.uid)) return;
+    if(c.block){ // skills auto-stage on self
+      if(spentEnergy()+c.cost > 3){ toast('Not enough energy'); return; }
+      staged.push({uid:c.uid, card:c, target:-1});
+      selected=null;
+      afterStageChange();
+      return;
+    }
+    selected = selected===c.uid? null : c.uid;
+    renderHand();
+    setHint(selected? 'Now tap an enemy to aim — watch its health ghost.' : baseHint);
+    updatePreview();
+  }
+
+  function onTarget(i){
+    if(resolving) return;
+    if(!selected){ toast('Pick a card first'); return; }
+    const c=hand.find(h=>h.uid===selected);
+    if(spentEnergy()+c.cost > 3){ toast('Not enough energy'); return; }
+    staged.push({uid:c.uid, card:c, target:i});
+    selected=null;
+    afterStageChange();
+  }
+
+  function afterStageChange(){
+    renderHand(); render(); updatePreview();
+    setHint(baseHint);
+  }
+
+  function spentEnergy(){ return staged.reduce((s,x)=>s+x.card.cost,0); }
+  // ---- the core: ghost preview of the committed board ----
+  function project(){
+    // returns projected enemy hp array, projected block, projected incoming dmg
+    const ehp = enemies.map(e=>e.hp);
+    let bl = block, en = energy;
+    staged.forEach(s=>{
+      en -= s.card.cost;
+      if(s.card.block) bl += s.card.block;
+      if(s.card.dmg && s.target>=0){
+        const hits=s.card.hits||1;
+        ehp[s.target] -= s.card.dmg*hits;
+      }
+    });
+    // incoming = sum of alive enemies' atk intents, minus projected block
+    let incoming=0;
+    enemies.forEach((e,i)=>{ if(ehp[i]>0 && e.intent.type==='atk') incoming+=e.intent.val; });
+    const net=Math.max(0, incoming-bl);
+    return {ehp, bl, en, incoming, net};
+  }
+
+  function updatePreview(){
+    const p=project();
+    energy = energyBase() ; // recompute display base
+    document.getElementById('energyNum').textContent=p.en;
+    document.getElementById('blockNum').textContent=p.bl;
+    // enemy ghost bars + targeted styling + wires
+    const wires=document.getElementById('wires');
+    wires.innerHTML='';
+    document.querySelectorAll('.enemy').forEach((el)=>{
+      el.classList.remove('targeted');
+      const i=+el.dataset.i;
+      const fill=el.querySelector('.hpfill');
+      const num=el.querySelector('[data-hp]');
+      if(!fill||enemies[i].hp<=0) return;
+      const ghost=Math.max(0,p.ehp[i]);
+      fill.style.width=(100*ghost/enemies[i].max)+'%';
+      if(ghost!==enemies[i].hp){
+        num.innerHTML=`<span class="hp-ghost-text">${ghost}</span> / ${enemies[i].max}`;
+        el.classList.add('targeted');
+        if(ghost<=0) el.style.outline='';
+      } else {
+        num.textContent=Math.max(0,enemies[i].hp)+' / '+enemies[i].max;
+      }
+    });
+    // incoming to hero
+    const inc=document.getElementById('incoming');
+    if(p.incoming>0){
+      inc.innerHTML = p.net>0
+        ? `Incoming ⚔ ${p.incoming} — you'll take <b>${p.net}</b>`
+        : `Incoming ⚔ ${p.incoming} — <b>fully blocked</b>`;
+    } else inc.textContent='';
+    // commit button
+    const commit=document.getElementById('commitBtn');
+    commit.disabled = staged.length===0;
+    commit.textContent = staged.length? `Commit (${staged.length})` : 'Commit';
+    drawWires();
+  }
+  function energyBase(){return 3;}
+
+  // draw arrows from enemies to hero (their telegraphed attacks)
+  function drawWires(){
+    const wires=document.getElementById('wires');
+    const arena=document.getElementById('arena').getBoundingClientRect();
+    const heroEl=document.getElementById('hero').getBoundingClientRect();
+    const hx=heroEl.left-arena.left+heroEl.width/2, hy=heroEl.top-arena.top+10;
+    let svg='';
+    document.querySelectorAll('.enemy').forEach(el=>{
+      const i=+el.dataset.i;
+      if(enemies[i].hp<=0 || enemies[i].intent.type!=='atk') return;
+      const r=el.getBoundingClientRect();
+      const ex=r.left-arena.left+r.width/2, ey=r.bottom-arena.top-6;
+      const mx=(ex+hx)/2, my=(ey+hy)/2+30;
+      svg+=`<path d="M${ex},${ey} Q${mx},${my} ${hx},${hy}" fill="none" stroke="rgba(183,71,47,.55)" stroke-width="2.5" stroke-dasharray="6 5"/>`;
+      svg+=`<circle cx="${hx}" cy="${hy}" r="4" fill="rgba(183,71,47,.8)"/>`;
+    });
+    wires.innerHTML=svg;
+  }
+
+  // ---- commit / resolve ----
+  document.getElementById('commitBtn').addEventListener('click',resolveTurn);
+  document.getElementById('undoBtn').addEventListener('click',()=>{
+    if(resolving||!staged.length) return;
+    staged.pop(); selected=null; afterStageChange();
+  });
+
+  function resolveTurn(){
+    if(resolving||!staged.length) return;
+    resolving=true; selected=null;
+    document.getElementById('turnband').textContent='Resolving…';
+    // apply staged sequentially with juice
+    let step=0;
+    const seq=staged.slice();
+    function next(){
+      if(step>=seq.length){ enemyPhase(); return; }
+      const s=seq[step++];
+      if(s.card.block){ block+=s.card.block; }
+      if(s.card.dmg && s.target>=0){
+        const hits=s.card.hits||1;
+        for(let k=0;k<hits;k++){ enemies[s.target].hp-=s.card.dmg; }
+        const el=document.querySelector('.enemy[data-i="'+s.target+'"]');
+        if(el){ el.classList.add('hit'); setTimeout(()=>el.classList.remove('hit'),300);
+          floatNum(el,'-'+s.card.dmg*hits,'#b7472f'); burst(el,'#1f8a8c'); }
+      }
+      energy-=s.card.cost;
+      render();
+      setTimeout(next,360);
+    }
+    next();
+  }
+
+  function enemyPhase(){
+    document.getElementById('turnband').textContent='Enemy turn';
+    setTimeout(()=>{
+      let dmg=0;
+      enemies.forEach(e=>{ if(e.hp>0){ if(e.intent.type==='atk') dmg+=e.intent.val; else e.hp=Math.min(e.max,e.hp+0); }});
+      const net=Math.max(0,dmg-block);
+      if(net>0){ hero.hp=Math.max(0,hero.hp-net);
+        const he=document.getElementById('hero'); he.classList.add('hit'); setTimeout(()=>he.classList.remove('hit'),300);
+        floatNum(he,'-'+net,'#b7472f'); shake(); }
+      block=0;
+      render();
+      setTimeout(startNewTurn,650);
+    },500);
+  }
+
+  function startNewTurn(){
+    if(hero.hp<=0){ toast('Defeated — tap to retry'); document.getElementById('phone').addEventListener('click',reset,{once:true}); return; }
+    if(enemies.every(e=>e.hp<=0)){ toast('Victory! tap to replay'); confetti(); document.getElementById('phone').addEventListener('click',reset,{once:true}); return; }
+    // enemies retarget intents (rough)
+    enemies.forEach(e=>{ if(e.hp>0 && Math.random()<.4){ e.intent = Math.random()<.7? {type:'atk',val:Math.round(rnd(5,10))} : {type:'block',val:8}; }});
+    hand=deal(); energy=3; block=0; staged=[]; resolving=false;
+    document.getElementById('turnband').textContent='Your turn';
+    render(); renderHand(); updatePreview();
+  }
+  function reset(){ init(); document.getElementById('turnband').textContent='Your turn'; }
+
+  // ---- juice helpers ----
+  const canvas=document.getElementById('fx');
+  function sizeCanvas(){ const p=document.getElementById('phone').getBoundingClientRect(); const a=document.getElementById('arena').getBoundingClientRect();
+    canvas.width=a.width; canvas.height=a.height; canvas.style.width=a.width+'px'; canvas.style.height=a.height+'px'; }
+  let particles=[];
+  function burst(el,color){
+    const a=document.getElementById('arena').getBoundingClientRect(); const r=el.getBoundingClientRect();
+    const x=r.left-a.left+r.width/2, y=r.top-a.top+r.height/2;
+    for(let i=0;i<18;i++){ particles.push({x,y,vx:rnd(-3,3),vy:rnd(-4,1),life:1,color}); }
+  }
+  function confetti(){ const a=document.getElementById('arena').getBoundingClientRect();
+    for(let i=0;i<80;i++){ particles.push({x:rnd(0,a.width),y:-10,vx:rnd(-1,1),vy:rnd(1,4),life:1,color:['#1f8a8c','#c99b3f','#b7472f'][i%3]});}}
+  function tick(){
+    const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
+    particles.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vy+=.15; p.life-=.02; ctx.globalAlpha=Math.max(0,p.life);
+      ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,3,0,7); ctx.fill(); });
+    particles=particles.filter(p=>p.life>0); ctx.globalAlpha=1; requestAnimationFrame(tick);
+  }
+  function floatNum(el,txt,color){
+    const a=document.getElementById('arena'); const ar=a.getBoundingClientRect(); const r=el.getBoundingClientRect();
+    const d=document.createElement('div'); d.textContent=txt;
+    d.style.cssText=`position:absolute;left:${r.left-ar.left+r.width/2}px;top:${r.top-ar.top}px;transform:translate(-50%,0);
+      font-weight:700;font-size:22px;color:${color};z-index:8;pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,.3);`;
+    a.appendChild(d);
+    let t=0; (function up(){ t+=1; d.style.top=(r.top-ar.top-t*1.2)+'px'; d.style.opacity=String(1-t/40);
+      if(t<40) requestAnimationFrame(up); else d.remove(); })();
+  }
+  function shake(){ const p=document.getElementById('phone'); p.animate([{transform:'translateX(0)'},{transform:'translateX(-6px)'},{transform:'translateX(5px)'},{transform:'translateX(0)'}],{duration:220});}
+  let toastT;
+  function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),1400);}
+
+  const baseHint='Tap a card, then tap a target. The board ghosts the exact result before you commit.';
+  function setHint(h){ document.getElementById('hint').innerHTML=h; }
+
+  window.addEventListener('resize',()=>{sizeCanvas();drawWires();});
+  window.addEventListener('load',()=>{sizeCanvas(); init(); tick(); setTimeout(drawWires,60);});
+})();
+</script>
+</body>
+</html>

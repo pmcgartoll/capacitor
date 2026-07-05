@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Kismet — prototype</title>
+<style>
+  :root{
+    --wood:#5a3a22; --wood2:#3c2515; --felt:#2f6b4f; --felt2:#245740;
+    --ivory:#f6efe0; --ivory2:#e3d8c2; --ink:#3a2c1c; --gold:#d9a441; --red:#c0432b; --steel:#5c7a9c;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{font-family:"Georgia","Times New Roman",serif;background:#1a0f08;color:var(--ivory);
+    display:flex;align-items:center;justify-content:center;min-height:100%;}
+  .phone{position:relative;width:min(430px,100vw);height:min(880px,100vh);overflow:hidden;display:flex;flex-direction:column;
+    background:
+      radial-gradient(120% 60% at 50% 120%, #7a5333, var(--wood) 40%, var(--wood2) 100%);
+    box-shadow:0 20px 60px rgba(0,0,0,.7);}
+  .backlink{position:absolute;top:12px;right:14px;z-index:20;font-size:11px;color:#e8d;text-decoration:none;border:1px solid #a97;border-radius:12px;padding:2px 8px;color:#e9d9bf;}
+  header{padding:14px 18px 6px;}
+  .title{font-size:24px;font-weight:700;letter-spacing:.05em;color:var(--gold);text-shadow:0 2px 4px rgba(0,0,0,.5);}
+  .sub{font-size:11px;color:#c9ac7f;letter-spacing:.16em;text-transform:uppercase;}
+
+  .arena{position:relative;margin:6px 14px;border-radius:16px;padding:12px;flex:1;display:flex;flex-direction:column;
+    background:radial-gradient(120% 120% at 50% 0%, var(--felt), var(--felt2));
+    border:2px solid #12331f;box-shadow:inset 0 0 40px rgba(0,0,0,.5),0 6px 16px rgba(0,0,0,.4);}
+  .felt-stitch{position:absolute;inset:6px;border:1.5px dashed rgba(255,255,255,.14);border-radius:12px;pointer-events:none;}
+  .enemy{display:flex;gap:12px;align-items:center;justify-content:center;padding:6px 0 4px;position:relative;}
+  .enemy .tok{width:78px;height:78px;border-radius:14px;background:radial-gradient(120% 120% at 30% 20%,#8a5a3a,#43281a);
+    border:2px solid #2a180d;display:flex;align-items:center;justify-content:center;font-size:40px;box-shadow:0 5px 0 rgba(0,0,0,.3);position:relative;}
+  .enemy .tok.hit{animation:ehit .3s;}
+  @keyframes ehit{0%{transform:scale(1)}30%{transform:scale(1.16) rotate(-3deg)}100%{transform:scale(1)}}
+  .enemy .info{min-width:150px;}
+  .enemy .nm{font-size:15px;font-weight:700;}
+  .intent{display:inline-block;margin-top:4px;background:var(--red);color:#fff;font-size:12px;font-weight:700;padding:2px 9px;border-radius:12px;}
+  .hpbar{height:9px;border:1px solid #1c3a28;border-radius:6px;overflow:hidden;background:rgba(0,0,0,.3);margin-top:6px;position:relative;}
+  .hpfill{height:100%;background:linear-gradient(90deg,var(--red),#e07a5f);transition:width .35s;}
+  .hpghost{position:absolute;top:0;height:100%;background:rgba(217,164,65,.55);transition:width .15s;}
+  .hpnum{font-size:11px;color:#d8e8dd;margin-top:3px;}
+  .ghosttxt{color:var(--gold);font-weight:700;}
+
+  .midrow{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding:6px 2px;font-size:12px;color:#d8e8dd;}
+  .tally{text-align:center;}
+  .tally .big{font-size:20px;font-weight:700;}
+  .tally.atk .big{color:#ffd08a;} .tally.def .big{color:#9fd3ff;}
+  .hero{display:flex;align-items:center;gap:10px;justify-content:center;padding-top:6px;}
+  .hero .tok{width:54px;height:54px;border-radius:12px;background:radial-gradient(120% 120% at 30% 20%,#4a7ea6,#22415a);
+    border:2px solid #16293a;display:flex;align-items:center;justify-content:center;font-size:26px;}
+  .hero .hpnum{font-size:12px;}
+  .incoming{font-size:12px;color:#ffbfa8;margin-top:3px;}
+  .incoming b{color:var(--gold);}
+
+  .tray{padding:8px 14px 4px;}
+  .budget{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#e9d9bf;letter-spacing:.06em;padding:0 4px 6px;}
+  .pips{display:flex;gap:4px;}
+  .pip{width:14px;height:14px;border-radius:50%;background:#3a2515;border:1px solid #d9a441;}
+  .pip.on{background:var(--gold);box-shadow:0 0 8px rgba(217,164,65,.7);}
+  .dice{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;min-height:76px;}
+  .die{width:64px;height:64px;border-radius:14px;position:relative;cursor:pointer;user-select:none;
+    background:linear-gradient(150deg,var(--ivory),var(--ivory2));color:var(--ink);
+    border:1px solid #b9a983;box-shadow:0 5px 0 #b09873, inset 0 2px 4px rgba(255,255,255,.6);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;transition:transform .1s;}
+  .die:active{transform:translateY(2px);}
+  .die.sel{box-shadow:0 0 0 3px var(--gold),0 6px 12px rgba(0,0,0,.4);transform:translateY(-6px);}
+  .die.locked{background:linear-gradient(150deg,#e9dcc0,#cdbf9e);}
+  .die.locked::after{content:'🔒';position:absolute;top:2px;right:4px;font-size:11px;}
+  .die.rolling{animation:roll .5s;}
+  @keyframes roll{0%{transform:rotate(0) scale(1)}25%{transform:rotate(-12deg) scale(1.1)}50%{transform:rotate(10deg) scale(.95)}75%{transform:rotate(-6deg)}100%{transform:rotate(0) scale(1)}}
+  .die .sym{font-size:22px;line-height:1;}
+  .die .val{font-size:22px;font-weight:800;line-height:1;}
+  .die.atk .val{color:#a9541f;} .die.def .val{color:#2f5f86;}
+
+  .tools{display:flex;gap:6px;justify-content:center;margin-top:10px;}
+  .tool{flex:1;border:1px solid #7a5a34;border-radius:12px;background:linear-gradient(180deg,#5f4127,#3f2916);color:#f0e2c6;
+    font:inherit;font-size:12px;font-weight:700;padding:9px 4px;cursor:pointer;text-align:center;line-height:1.2;}
+  .tool:disabled{opacity:.35;}
+  .tool .k{display:block;font-size:16px;}
+
+  .actions{display:flex;gap:10px;padding:10px 14px 16px;align-items:center;}
+  .hint{flex:1;font-size:11px;color:#d8c4a0;line-height:1.3;}
+  .hint b{color:var(--gold);}
+  .btn{border:none;border-radius:28px;padding:14px 20px;font:inherit;font-weight:700;letter-spacing:.05em;cursor:pointer;font-size:14px;}
+  .roll{background:linear-gradient(180deg,#e6c477,var(--gold));color:#3a2610;box-shadow:0 4px 0 #9c7220;}
+  .roll:active{transform:translateY(2px);box-shadow:0 2px 0 #9c7220;}
+  .resolve{background:linear-gradient(180deg,#e08a6f,var(--red));color:#fff;box-shadow:0 4px 0 #822a1a;}
+  .resolve:active{transform:translateY(2px);box-shadow:0 2px 0 #822a1a;}
+  .resolve:disabled{opacity:.45;box-shadow:none;}
+
+  .toast{position:absolute;left:50%;top:16%;transform:translateX(-50%);z-index:30;background:#2a180d;border:1px solid var(--gold);
+    color:var(--ivory);padding:8px 16px;border-radius:20px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;}
+  .toast.show{opacity:1;}
+  .footer{text-align:center;font-size:9px;color:#8a6a44;letter-spacing:.14em;text-transform:uppercase;padding-bottom:4px;}
+  #fx{position:absolute;inset:0;pointer-events:none;z-index:12;}
+</style>
+</head>
+<body>
+<div class="phone" id="phone">
+  <a class="backlink" href="./index.html">gallery</a>
+  <header>
+    <div class="title">Kismet</div>
+    <div class="sub">press your luck · bend the dice</div>
+  </header>
+
+  <div class="arena" id="arena">
+    <div class="felt-stitch"></div>
+    <div class="enemy">
+      <div class="tok" id="etok">🐗</div>
+      <div class="info">
+        <div class="nm" id="enm">Tuskboar</div>
+        <div class="intent" id="eintent">⚔ 8</div>
+        <div class="hpbar"><div class="hpghost" id="ehpghost"></div><div class="hpfill" id="ehpfill" style="width:100%"></div></div>
+        <div class="hpnum" id="ehpnum">20 / 20</div>
+      </div>
+    </div>
+
+    <div class="midrow">
+      <div class="tally atk"><div>Attack</div><div class="big" id="atkTotal">0</div></div>
+      <div class="hero">
+        <div class="tok">🛡️</div>
+        <div>
+          <div class="hpnum" id="hhpnum">30 / 30</div>
+          <div class="incoming" id="incoming"></div>
+        </div>
+      </div>
+      <div class="tally def"><div>Block</div><div class="big" id="defTotal">0</div></div>
+    </div>
+  </div>
+
+  <div class="tray">
+    <div class="budget">
+      <span>Manipulations</span>
+      <span class="pips" id="pips"></span>
+    </div>
+    <div class="dice" id="dice"></div>
+    <div class="tools">
+      <button class="tool" id="tReroll" disabled><span class="k">🎲</span>Reroll</button>
+      <button class="tool" id="tUp" disabled><span class="k">▲</span>Nudge +1</button>
+      <button class="tool" id="tDown" disabled><span class="k">▼</span>Nudge −1</button>
+      <button class="tool" id="tFlip" disabled><span class="k">⚔↔🛡</span>Convert</button>
+      <button class="tool" id="tLock" disabled><span class="k">🔒</span>Lock</button>
+    </div>
+  </div>
+
+  <div class="actions">
+    <div class="hint" id="hint">Tap <b>Roll</b>, then sculpt your dice. <b>Hold Resolve</b> to preview the outcome.</div>
+    <button class="btn roll" id="rollBtn">Roll</button>
+    <button class="btn resolve" id="resolveBtn" disabled>Resolve</button>
+  </div>
+
+  <canvas id="fx"></canvas>
+  <div class="toast" id="toast"></div>
+  <div class="footer">rough visual prototype — not full gameplay</div>
+</div>
+
+<script>
+(function(){
+  const rnd=(a,b)=>a+Math.random()*(b-a);
+  const ri=(a,b)=>Math.floor(rnd(a,b+1));
+  let hero,enemy,dice,budget,budgetMax,sel,rolled,wave;
+
+  function spawnEnemy(n){
+    const list=[['Tuskboar','🐗'],['Cave Bat','🦇',],['Stone Golem','🗿'],['Viper','🐍'],['Wraith','👻']];
+    const [nm,g]=list[(n-1)%list.length];
+    const hp=16+n*6;
+    enemy={nm,g,hp,max:hp,intent:ri(6,10)};
+  }
+  function init(){
+    hero={hp:30,max:30}; budgetMax=3; wave=1; spawnEnemy(1);
+    dice=[]; sel=-1; rolled=false;
+    render(); renderDice(); updateTotals(); refreshTools();
+    document.getElementById('resolveBtn').disabled=true;
+  }
+
+  function newDice(){
+    dice=[];
+    for(let i=0;i<5;i++){ dice.push({sym:Math.random()<.55?'atk':'def', val:ri(1,6), locked:false}); }
+  }
+
+  const diceEl=document.getElementById('dice');
+  function renderDice(){
+    diceEl.innerHTML='';
+    dice.forEach((d,i)=>{
+      const el=document.createElement('div');
+      el.className='die '+d.sym+(sel===i?' sel':'')+(d.locked?' locked':'');
+      el.dataset.i=i;
+      el.innerHTML=`<span class="sym">${d.sym==='atk'?'⚔':'🛡'}</span><span class="val">${d.val}</span>`;
+      el.addEventListener('click',()=>{ sel=(sel===i?-1:i); renderDice(); refreshTools(); });
+      diceEl.appendChild(el);
+    });
+  }
+  function renderBudget(){
+    const p=document.getElementById('pips'); p.innerHTML='';
+    for(let i=0;i<budgetMax;i++){ const s=document.createElement('span'); s.className='pip'+(i<budget?' on':''); p.appendChild(s);}
+  }
+
+  function totals(){
+    let atk=0,def=0;
+    dice.forEach(d=>{ if(d.sym==='atk')atk+=d.val; else def+=d.val; });
+    return {atk,def};
+  }
+  function updateTotals(){
+    const t=totals();
+    document.getElementById('atkTotal').textContent=t.atk;
+    document.getElementById('defTotal').textContent=t.def;
+    renderBudget();
+    // enemy hp ghost preview
+    const ghost=Math.max(0,enemy.hp-t.atk);
+    document.getElementById('ehpghost').style.width=(100*ghost/enemy.max)+'%';
+    document.getElementById('ehpfill').style.width=(100*enemy.hp/enemy.max)+'%';
+    if(rolled && t.atk>0){ document.getElementById('ehpnum').innerHTML=`<span class="ghosttxt">${ghost}</span> / ${enemy.max}`; }
+    else document.getElementById('ehpnum').textContent=Math.max(0,enemy.hp)+' / '+enemy.max;
+    // incoming
+    const net=Math.max(0,enemy.intent-t.def);
+    document.getElementById('incoming').innerHTML = rolled
+      ? (net>0? `takes <b>${net}</b> next` : `<b>fully blocked</b>`) : '';
+  }
+
+  function render(){
+    document.getElementById('enm').textContent=enemy.nm;
+    document.getElementById('etok').textContent=enemy.g;
+    document.getElementById('eintent').textContent='⚔ '+enemy.intent;
+    document.getElementById('ehpfill').style.width=(100*Math.max(0,enemy.hp)/enemy.max)+'%';
+    document.getElementById('ehpnum').textContent=Math.max(0,enemy.hp)+' / '+enemy.max;
+    document.getElementById('hhpnum').textContent=hero.hp+' / '+hero.max;
+  }
+
+  // ---- roll ----
+  document.getElementById('rollBtn').addEventListener('click',()=>{
+    newDice(); budget=budgetMax; sel=-1; rolled=true;
+    renderDice(); renderBudget(); refreshTools();
+    diceEl.querySelectorAll('.die').forEach((e,i)=>{ e.classList.add('rolling'); setTimeout(()=>e.classList.remove('rolling'),500+i*40); });
+    document.getElementById('resolveBtn').disabled=false;
+    setHint('Sculpt: tap a die, then a tool. <b>Hold Resolve</b> to preview.');
+    setTimeout(updateTotals,120);
+    document.getElementById('rollBtn').textContent='Reroll All';
+  });
+
+  // ---- manipulation tools ----
+  function spend(){ budget--; renderBudget(); refreshTools(); updateTotals(); }
+  function needSel(){ if(sel<0){ toast('select a die first'); return true;} if(dice[sel].locked){toast('die is locked');return true;} if(budget<=0){toast('no manipulations left');return true;} return false; }
+  document.getElementById('tReroll').addEventListener('click',()=>{ if(needSel())return; const d=dice[sel]; d.val=ri(1,6); if(Math.random()<.35)d.sym=d.sym==='atk'?'def':'atk'; animDie(sel); spend(); renderDice(); });
+  document.getElementById('tUp').addEventListener('click',()=>{ if(needSel())return; if(dice[sel].val>=6){toast('already 6');return;} dice[sel].val++; spend(); renderDice(); bumpDie(sel); });
+  document.getElementById('tDown').addEventListener('click',()=>{ if(needSel())return; if(dice[sel].val<=1){toast('already 1');return;} dice[sel].val--; spend(); renderDice(); bumpDie(sel); });
+  document.getElementById('tFlip').addEventListener('click',()=>{ if(needSel())return; dice[sel].sym=dice[sel].sym==='atk'?'def':'atk'; spend(); renderDice(); bumpDie(sel); });
+  document.getElementById('tLock').addEventListener('click',()=>{ if(sel<0){toast('select a die');return;} dice[sel].locked=!dice[sel].locked; renderDice(); refreshTools(); });
+
+  function refreshTools(){
+    const has = sel>=0 && rolled;
+    const canManip = has && !dice[sel].locked && budget>0;
+    ['tReroll','tUp','tDown','tFlip'].forEach(id=>document.getElementById(id).disabled=!canManip);
+    document.getElementById('tLock').disabled=!has;
+    document.getElementById('tLock').querySelector('.k').textContent = (has&&dice[sel].locked)?'🔓':'🔒';
+  }
+
+  // ---- resolve with hold-to-preview ----
+  const resolveBtn=document.getElementById('resolveBtn');
+  let holdT=null, previewing=false;
+  resolveBtn.addEventListener('pointerdown',()=>{ if(resolveBtn.disabled)return;
+    holdT=setTimeout(()=>{ previewing=true; showResolvePreview(); },200);
+  });
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>resolveBtn.addEventListener(ev,()=>{
+    if(resolveBtn.disabled)return; clearTimeout(holdT);
+    if(previewing){ previewing=false; hideResolvePreview(); }
+    else doResolve();
+  }));
+  function showResolvePreview(){ const t=totals(); const ghost=Math.max(0,enemy.hp-t.atk); const net=Math.max(0,enemy.intent-t.def);
+    setHint(`Preview → deal <b>${t.atk}</b> (foe ${ghost} hp), block ${t.def}, you take <b>${net}</b>.`);
+    document.getElementById('phone').style.filter='saturate(1.15)'; }
+  function hideResolvePreview(){ setHint('Sculpt more, or Resolve for real.'); document.getElementById('phone').style.filter=''; }
+
+  function doResolve(){
+    document.getElementById('phone').style.filter='';
+    const t=totals();
+    resolveBtn.disabled=true; document.getElementById('rollBtn').disabled=true;
+    // attack
+    if(t.atk>0){ enemy.hp-=t.atk; const tok=document.getElementById('etok'); tok.classList.add('hit'); setTimeout(()=>tok.classList.remove('hit'),300);
+      burstAt(tok,'#d9a441'); floatAt(tok,'-'+t.atk,'#d9a441'); }
+    render(); updateTotals();
+    setTimeout(()=>{
+      if(enemy.hp<=0){ // enemy dies before it acts
+        toast('Enemy felled!'); confetti();
+        wave++; spawnEnemy(wave); hero.hp=Math.min(hero.max,hero.hp+3);
+        endTurn(); return;
+      }
+      // enemy attacks
+      const net=Math.max(0,enemy.intent-t.def);
+      if(net>0){ hero.hp=Math.max(0,hero.hp-net); shake(); floatAt(document.querySelector('.hero .tok'),'-'+net,'#c0432b'); }
+      else toast('blocked!');
+      render();
+      if(hero.hp<=0){ toast('You fall — tap to retry'); document.getElementById('phone').addEventListener('click',()=>init(),{once:true}); return; }
+      // enemy picks new intent
+      enemy.intent=ri(6,10);
+      endTurn();
+    },520);
+  }
+  function endTurn(){
+    dice=[]; sel=-1; rolled=false;
+    renderDice(); refreshTools(); render();
+    document.getElementById('atkTotal').textContent='0'; document.getElementById('defTotal').textContent='0';
+    document.getElementById('ehpghost').style.width='0'; document.getElementById('incoming').textContent='';
+    document.getElementById('rollBtn').disabled=false; document.getElementById('rollBtn').textContent='Roll';
+    document.getElementById('resolveBtn').disabled=true;
+    setHint('Tap <b>Roll</b> to cast the dice.');
+    budget=0; renderBudget();
+  }
+
+  // ---- juice ----
+  const canvas=document.getElementById('fx');
+  function sizeCanvas(){const p=document.getElementById('phone').getBoundingClientRect();canvas.width=p.width;canvas.height=p.height;canvas.style.width=p.width+'px';canvas.style.height=p.height+'px';}
+  let parts=[];
+  function burstAt(el,c){const pr=document.getElementById('phone').getBoundingClientRect();const r=el.getBoundingClientRect();
+    const x=r.left-pr.left+r.width/2,y=r.top-pr.top+r.height/2; for(let i=0;i<16;i++)parts.push({x,y,vx:rnd(-3,3),vy:rnd(-4,1),life:1,c});}
+  function confetti(){const pr=document.getElementById('phone').getBoundingClientRect();
+    for(let i=0;i<70;i++)parts.push({x:rnd(0,pr.width),y:-10,vx:rnd(-1,1),vy:rnd(1,4),life:1,c:['#d9a441','#c0432b','#5c7a9c','#f6efe0'][i%4]});}
+  function tick(){const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);
+    parts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.14;p.life-=.02;ctx.globalAlpha=Math.max(0,p.life);ctx.fillStyle=p.c;ctx.fillRect(p.x,p.y,3.5,3.5);});
+    parts=parts.filter(p=>p.life>0);ctx.globalAlpha=1;requestAnimationFrame(tick);}
+  function floatAt(el,txt,color){const pr=document.getElementById('phone');const prr=pr.getBoundingClientRect();const r=el.getBoundingClientRect();
+    const d=document.createElement('div');d.textContent=txt;
+    d.style.cssText=`position:absolute;left:${r.left-prr.left+r.width/2}px;top:${r.top-prr.top}px;transform:translate(-50%,0);font-weight:800;font-size:24px;color:${color};z-index:15;pointer-events:none;text-shadow:0 1px 3px rgba(0,0,0,.5);`;
+    pr.appendChild(d);let t=0;(function up(){t++;d.style.top=(r.top-prr.top-t*1.3)+'px';d.style.opacity=String(1-t/40);if(t<40)requestAnimationFrame(up);else d.remove();})();}
+  function animDie(i){const el=diceEl.querySelector('.die[data-i="'+i+'"]');if(el){el.classList.add('rolling');setTimeout(()=>el.classList.remove('rolling'),500);}}
+  function bumpDie(i){const el=diceEl.querySelector('.die[data-i="'+i+'"]');if(el)el.animate([{transform:'scale(1)'},{transform:'scale(1.18)'},{transform:'scale(1)'}],{duration:180});}
+  function shake(){document.getElementById('phone').animate([{transform:'translateX(0)'},{transform:'translateX(-6px)'},{transform:'translateX(5px)'},{transform:'translateX(0)'}],{duration:220});}
+  let toastT;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),1400);}
+  function setHint(h){document.getElementById('hint').innerHTML=h;}
+
+  window.addEventListener('resize',sizeCanvas);
+  window.addEventListener('load',()=>{sizeCanvas();init();tick();
+    if(location.search.indexOf('roll')>=0) document.getElementById('rollBtn').click();
+  });
+})();
+</script>
+</body>
+</html>

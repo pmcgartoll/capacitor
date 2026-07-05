@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Sigil Forge — prototype</title>
+<style>
+  :root{
+    --bg1:#2a1c10; --bg2:#160d06; --brass:#c8912f; --brass-lt:#f0c76a; --rune:#7fd3c8;
+    --ink:#f4e6c8; --dim:#b79b6b; --hot:#ff8a3d; --good:#8fe08a;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;background:#0c0704;color:var(--ink);
+    display:flex;align-items:center;justify-content:center;min-height:100%;}
+  .phone{position:relative;width:min(430px,100vw);height:min(880px,100vh);overflow:hidden;
+    background:radial-gradient(120% 90% at 50% 0%, #3a2612, var(--bg1) 45%, var(--bg2) 100%);
+    display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.6);}
+  .phone::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(90deg,rgba(255,255,255,.02) 0 2px,transparent 2px 5px);opacity:.5;}
+  header{padding:14px 18px 4px;}
+  .title{font-size:23px;font-weight:800;letter-spacing:.04em;color:var(--brass-lt);
+    text-shadow:0 1px 0 #5a3d15,0 0 18px rgba(200,145,47,.4);}
+  .sub{font-size:11px;color:var(--dim);letter-spacing:.16em;text-transform:uppercase;}
+  .backlink{position:absolute;top:12px;right:14px;z-index:20;font-size:11px;color:var(--dim);text-decoration:none;border:1px solid var(--dim);border-radius:12px;padding:2px 8px;}
+
+  .quotawrap{padding:8px 18px 2px;}
+  .quotarow{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;}
+  .essence{font-size:26px;font-weight:800;color:var(--brass-lt);}
+  .qbar{height:10px;border:1px solid var(--brass);border-radius:6px;overflow:hidden;background:#1c1207;margin-top:5px;position:relative;}
+  .qfill{height:100%;width:0;background:linear-gradient(90deg,var(--brass),var(--brass-lt));transition:width .5s;}
+  .qghost{position:absolute;top:0;height:100%;background:rgba(127,211,200,.4);transition:width .2s;}
+
+  .boardwrap{flex:1;display:flex;align-items:center;justify-content:center;position:relative;}
+  .board{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px;
+    background:linear-gradient(160deg,#3a2612,#1d1208);border:2px solid var(--brass);border-radius:16px;
+    box-shadow:inset 0 0 30px rgba(0,0,0,.6),0 6px 20px rgba(0,0,0,.5);width:min(360px,92vw);}
+  #links{position:absolute;inset:0;pointer-events:none;z-index:4;}
+  .cell{aspect-ratio:1/1;border-radius:10px;border:1.5px solid #6b4a1e;
+    background:radial-gradient(120% 120% at 30% 20%,#2c1d0e,#160d05);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;cursor:pointer;user-select:none;}
+  .cell.empty{border-style:dashed;opacity:.5;}
+  .cell .sym{font-size:30px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5));}
+  .cell .val{position:absolute;bottom:3px;right:5px;font-size:11px;font-weight:800;color:var(--brass-lt);}
+  .cell.firing{animation:fire .4s;}
+  .cell.linked{box-shadow:0 0 0 2px var(--rune),0 0 16px rgba(127,211,200,.6);}
+  @keyframes fire{0%{transform:scale(1)}40%{transform:scale(1.22);box-shadow:0 0 22px var(--hot)}100%{transform:scale(1)}}
+  .cell .pop{position:absolute;top:-6px;left:50%;transform:translateX(-50%);color:var(--good);font-weight:800;font-size:15px;opacity:0;}
+  .readno{position:absolute;top:2px;left:4px;font-size:9px;color:#7a5a2a;font-weight:700;}
+
+  .dock{padding:8px 16px 16px;}
+  .hint{font-size:11px;color:var(--dim);line-height:1.35;min-height:30px;text-align:center;margin-bottom:6px;}
+  .hint b{color:var(--rune);}
+  .spinrow{display:flex;gap:10px;align-items:stretch;}
+  .spinbtn{flex:1;border:none;border-radius:32px;padding:16px;font:inherit;font-weight:800;font-size:16px;letter-spacing:.08em;
+    text-transform:uppercase;color:#2a1a06;background:linear-gradient(180deg,var(--brass-lt),var(--brass));cursor:pointer;
+    box-shadow:0 5px 0 #7a541b,0 8px 18px rgba(0,0,0,.4);transition:transform .1s,box-shadow .1s;}
+  .spinbtn:active{transform:translateY(3px);box-shadow:0 2px 0 #7a541b;}
+  .spinbtn small{display:block;font-size:9px;font-weight:700;opacity:.7;letter-spacing:.12em;}
+  .spinbtn.previewing{background:linear-gradient(180deg,var(--rune),#3f9c92);color:#08211f;}
+
+  /* draft drawer */
+  .drawer{position:absolute;left:0;right:0;bottom:0;z-index:15;transform:translateY(110%);transition:transform .35s cubic-bezier(.2,.9,.3,1);
+    background:linear-gradient(180deg,#2a1c10,#160d06);border-top:2px solid var(--brass);border-radius:18px 18px 0 0;padding:14px 16px 20px;
+    box-shadow:0 -10px 30px rgba(0,0,0,.5);}
+  .drawer.show{transform:translateY(0);}
+  .drawer h3{margin:0 0 3px;font-size:15px;color:var(--brass-lt);letter-spacing:.04em;}
+  .drawer p{margin:0 0 12px;font-size:11px;color:var(--dim);}
+  .picks{display:flex;gap:10px;}
+  .pick{flex:1;border:1.5px solid #6b4a1e;border-radius:12px;background:radial-gradient(120% 120% at 30% 20%,#2c1d0e,#160d05);
+    padding:12px 6px;text-align:center;cursor:pointer;position:relative;transition:transform .1s;}
+  .pick:active{transform:scale(.96);}
+  .pick.reco{border-color:var(--rune);box-shadow:0 0 0 2px var(--rune),0 0 18px rgba(127,211,200,.4);}
+  .pick .badge{position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:var(--rune);color:#06201d;font-size:9px;font-weight:800;
+    padding:2px 7px;border-radius:10px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;}
+  .pick .sym{font-size:34px;}
+  .pick .nm{font-size:11px;font-weight:700;margin-top:4px;}
+  .pick .ds{font-size:9px;color:var(--dim);margin-top:3px;line-height:1.25;}
+
+  .toast{position:absolute;left:50%;top:16%;transform:translateX(-50%);z-index:30;background:#0c0704;border:1px solid var(--brass);
+    color:var(--ink);padding:8px 16px;border-radius:20px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;}
+  .toast.show{opacity:1;}
+  .footer{text-align:center;font-size:9px;color:#6b4a1e;letter-spacing:.14em;text-transform:uppercase;padding-bottom:4px;}
+  #fx{position:absolute;inset:0;pointer-events:none;z-index:12;}
+</style>
+</head>
+<body>
+<div class="phone" id="phone">
+  <a class="backlink" href="./index.html">gallery</a>
+  <header>
+    <div class="title">Sigil Forge</div>
+    <div class="sub">forge · the synergy engine you build on purpose</div>
+  </header>
+
+  <div class="quotawrap">
+    <div class="quotarow"><span>Round <b id="round">1</b></span><span>Quota <b id="quota">30</b></span></div>
+    <div class="essence" id="essence">0</div>
+    <div class="qbar"><div class="qghost" id="qghost"></div><div class="qfill" id="qfill"></div></div>
+  </div>
+
+  <div class="boardwrap" id="boardwrap">
+    <div class="board" id="board"><svg id="links"></svg></div>
+    <canvas id="fx"></canvas>
+  </div>
+
+  <div class="dock">
+    <div class="hint" id="hint">Hold <b>SPIN</b> to preview the payout. Tap a symbol to trace its <b>synergies</b>.</div>
+    <div class="spinrow">
+      <button class="spinbtn" id="spin">Spin<small>hold to preview</small></button>
+    </div>
+  </div>
+
+  <div class="drawer" id="drawer">
+    <h3>Forge a sigil</h3>
+    <p>Steer your build — the <span style="color:var(--rune)">recommended</span> pick synergises with what you have.</p>
+    <div class="picks" id="picks"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <div class="footer">rough visual prototype — not full gameplay</div>
+</div>
+
+<script>
+(function(){
+  const rnd=(a,b)=>a+Math.random()*(b-a);
+  const pick=arr=>arr[Math.floor(Math.random()*arr.length)];
+  // symbol defs: base value, synergy fn(neighbors,board)-> bonus, kind for reco
+  const SY={
+    coin:{sym:'🪙',nm:'Coin',kind:'gold',base:3,ds:'Pays 3.'},
+    gem:{sym:'💎',nm:'Gem',kind:'gold',base:5,ds:'Pays 5.'},
+    miner:{sym:'⛏️',nm:'Miner',kind:'gold',base:1,ds:'+3 per adjacent Coin/Gem.',
+      syn:(nb)=>nb.filter(n=>n&&(n.id==='coin'||n.id==='gem')).length*3},
+    ember:{sym:'🔥',nm:'Ember',kind:'fire',base:2,ds:'+2 per adjacent Ember.',
+      syn:(nb)=>nb.filter(n=>n&&n.id==='ember').length*2},
+    forge:{sym:'🏭',nm:'Forge',kind:'fire',base:1,ds:'x2 if adjacent to Ember.',
+      mul:(nb)=>nb.some(n=>n&&n.id==='ember')?2:1},
+    gear:{sym:'⚙️',nm:'Gear',kind:'clock',base:2,ds:'+2 per adjacent Gear.',
+      syn:(nb)=>nb.filter(n=>n&&n.id==='gear').length*2},
+    rune:{sym:'🔷',nm:'Rune',kind:'clock',base:4,ds:'Pays 4, +1 per Gear on board.',
+      board:(b)=>b.filter(c=>c&&c.id==='gear').length},
+    star:{sym:'⭐',nm:'Star',kind:'gold',base:6,ds:'Pays 6.'},
+  };
+  const ALL=Object.keys(SY);
+  const COLS=4,ROWS=4,N=COLS*ROWS;
+  let board, essence, quota, round, spinning, buildKind;
+
+  function starter(){
+    const b=new Array(N).fill(null);
+    // seed a handful
+    const seeds=['coin','coin','gem','miner','ember','gear'];
+    const idxs=shuffle([...Array(N).keys()]).slice(0,seeds.length);
+    idxs.forEach((ix,i)=>b[ix]=inst(seeds[i]));
+    return b;
+  }
+  function inst(id){return {id,...SY[id]};}
+  function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+  function neighbors(i,b){
+    const r=Math.floor(i/COLS),c=i%COLS,out=[];
+    [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]].forEach(([dr,dc])=>{
+      const nr=r+dr,nc=c+dc; if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS) out.push(b[nr*COLS+nc]); else out.push(null);
+    });
+    return out;
+  }
+  function cellValue(i,b){
+    const cell=b[i]; if(!cell) return 0;
+    const nb=neighbors(i,b);
+    let v=cell.base||0;
+    if(cell.syn) v+=cell.syn(nb,b);
+    if(cell.board) v+=cell.board(b);
+    if(cell.mul) v=Math.round(v*cell.mul(nb,b));
+    return v;
+  }
+  function totalValue(b){let t=0;for(let i=0;i<N;i++)t+=cellValue(i,b);return t;}
+
+  // ---- render ----
+  const boardEl=document.getElementById('board');
+  function render(){
+    // keep the svg element
+    [...boardEl.querySelectorAll('.cell')].forEach(e=>e.remove());
+    board.forEach((cell,i)=>{
+      const el=document.createElement('div');
+      el.className='cell'+(cell?'':' empty'); el.dataset.i=i;
+      if(cell){
+        el.innerHTML=`<span class="readno">${i+1}</span><span class="sym">${cell.sym}</span><span class="val">${cellValue(i,board)}</span><span class="pop"></span>`;
+        el.addEventListener('pointerdown',()=>traceLinks(i));
+        el.addEventListener('pointerup',clearLinks);
+        el.addEventListener('pointerleave',clearLinks);
+      }
+      boardEl.appendChild(el);
+    });
+    document.getElementById('essence').textContent=Math.round(essence);
+    document.getElementById('quota').textContent=quota;
+    document.getElementById('round').textContent=round;
+    document.getElementById('qfill').style.width=Math.min(100,100*essence/quota)+'%';
+  }
+
+  function traceLinks(i){
+    const el=boardEl.querySelector('.cell[data-i="'+i+'"]');
+    const cell=board[i]; if(!cell) return;
+    const nb=neighbors(i,board);
+    // highlight neighbors that contribute (same-kind synergy visualization)
+    document.querySelectorAll('.cell').forEach(c=>c.classList.remove('linked'));
+    const svg=document.getElementById('links'); svg.innerHTML='';
+    const br=boardEl.getBoundingClientRect();
+    const rr=el.getBoundingClientRect(); const cx=rr.left-br.left+rr.width/2, cy=rr.top-br.top+rr.height/2;
+    let linked=[];
+    if(cell.id==='miner') linked=neighborIdx(i).filter(j=>board[j]&&(board[j].id==='coin'||board[j].id==='gem'));
+    else if(cell.id==='ember') linked=neighborIdx(i).filter(j=>board[j]&&board[j].id==='ember');
+    else if(cell.id==='gear') linked=neighborIdx(i).filter(j=>board[j]&&board[j].id==='gear');
+    else if(cell.id==='forge') linked=neighborIdx(i).filter(j=>board[j]&&board[j].id==='ember');
+    else if(cell.id==='rune') linked=board.map((c,j)=>c&&c.id==='gear'?j:-1).filter(j=>j>=0);
+    el.classList.add('linked');
+    let s='';
+    linked.forEach(j=>{ const je=boardEl.querySelector('.cell[data-i="'+j+'"]'); if(!je)return; je.classList.add('linked');
+      const jr=je.getBoundingClientRect(); const jx=jr.left-br.left+jr.width/2, jy=jr.top-br.top+jr.height/2;
+      s+=`<line x1="${cx}" y1="${cy}" x2="${jx}" y2="${jy}" stroke="rgba(127,211,200,.85)" stroke-width="2.5"/>`;});
+    svg.innerHTML=s;
+    setHint(linked.length? `<b>${cell.nm}</b>: ${cell.ds}` : `<b>${cell.nm}</b>: ${cell.ds}`);
+  }
+  function neighborIdx(i){const r=Math.floor(i/COLS),c=i%COLS,out=[];
+    [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]].forEach(([dr,dc])=>{const nr=r+dr,nc=c+dc;if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS)out.push(nr*COLS+nc);});return out;}
+  function clearLinks(){document.getElementById('links').innerHTML='';document.querySelectorAll('.cell').forEach(c=>c.classList.remove('linked'));setHint(baseHint);}
+
+  // ---- spin with hold-to-preview ----
+  const spinBtn=document.getElementById('spin');
+  let holdTimer=null, previewing=false;
+  spinBtn.addEventListener('pointerdown',e=>{ if(spinning) return;
+    holdTimer=setTimeout(()=>{ previewing=true; spinBtn.classList.add('previewing'); showPreview(); },220);
+  });
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>spinBtn.addEventListener(ev,()=>{
+    if(spinning) return;
+    clearTimeout(holdTimer);
+    if(previewing){ previewing=false; spinBtn.classList.remove('previewing'); hidePreview(); }
+    else { doSpin(); }
+  }));
+
+  function showPreview(){
+    const t=totalValue(board);
+    document.getElementById('qghost').style.width=Math.min(100,100*(essence+t)/quota)+'%';
+    setHint(`Projected payout: <b>+${t}</b> essence → ${Math.round(essence+t)} / ${quota}`);
+    // pulse cells that pay well
+    board.forEach((c,i)=>{ if(c){const el=boardEl.querySelector('.cell[data-i="'+i+'"]'); if(cellValue(i,board)>=5) el.classList.add('linked');}});
+  }
+  function hidePreview(){ document.getElementById('qghost').style.width='0'; setHint(baseHint);
+    document.querySelectorAll('.cell').forEach(c=>c.classList.remove('linked')); }
+
+  function doSpin(){
+    if(spinning) return; spinning=true; setHint('Resolving reading order…');
+    const order=[...Array(N).keys()].filter(i=>board[i]);
+    let k=0;
+    function step(){
+      if(k>=order.length){ endSpin(); return; }
+      const i=order[k++];
+      const v=cellValue(i,board);
+      const el=boardEl.querySelector('.cell[data-i="'+i+'"]');
+      el.classList.add('firing'); setTimeout(()=>el.classList.remove('firing'),400);
+      essence+=v; popCell(el,'+'+v); burst(el); bump();
+      document.getElementById('essence').textContent=Math.round(essence);
+      document.getElementById('qfill').style.width=Math.min(100,100*essence/quota)+'%';
+      setTimeout(step,190);
+    }
+    step();
+  }
+  function endSpin(){
+    if(essence>=quota){ setHint('Quota met! Forge a new sigil →'); confetti(); openDraft(); }
+    else { setHint(`Short of quota (${Math.round(essence)}/${quota}). Forge to grow the engine →`); openDraft(); }
+  }
+
+  // ---- draft / forge (steering) ----
+  function openDraft(){
+    const drawer=document.getElementById('drawer'); const picks=document.getElementById('picks');
+    buildKind=dominantKind();
+    // 3 picks: one recommended (matches build), two random
+    const reco=pick(ALL.filter(id=>SY[id].kind===buildKind));
+    let others=shuffle(ALL.filter(id=>id!==reco)).slice(0,2);
+    const opts=shuffle([{id:reco,reco:true},{id:others[0]},{id:others[1]}]);
+    picks.innerHTML='';
+    opts.forEach(o=>{
+      const s=SY[o.id]; const el=document.createElement('div');
+      el.className='pick'+(o.reco?' reco':'');
+      el.innerHTML=`${o.reco?'<span class="badge">fits your build</span>':''}<div class="sym">${s.sym}</div><div class="nm">${s.nm}</div><div class="ds">${s.ds}</div>`;
+      el.addEventListener('click',()=>choose(o.id));
+      picks.appendChild(el);
+    });
+    setTimeout(()=>drawer.classList.add('show'),300);
+  }
+  function dominantKind(){
+    const cnt={}; board.forEach(c=>{if(c)cnt[c.kind]=(cnt[c.kind]||0)+1;});
+    return Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a])[0]||'gold';
+  }
+  function choose(id){
+    document.getElementById('drawer').classList.remove('show');
+    // place in first empty cell, or replace lowest-value cell
+    let slot=board.indexOf(null);
+    if(slot<0){ let lo=0,lv=Infinity; for(let i=0;i<N;i++){const v=cellValue(i,board); if(v<lv){lv=v;lo=i;}} slot=lo; }
+    board[slot]=inst(id);
+    const el=boardEl.querySelector('.cell[data-i="'+slot+'"]');
+    // next round
+    if(essence>=quota){ round++; quota=Math.round(quota*1.6+8); essence=0; toast('Round '+round+' — quota '+quota); }
+    spinning=false;
+    render(); setHint(baseHint);
+    const nel=boardEl.querySelector('.cell[data-i="'+slot+'"]'); if(nel){nel.classList.add('firing');setTimeout(()=>nel.classList.remove('firing'),400);burst(nel);}
+  }
+
+  // ---- juice ----
+  const canvas=document.getElementById('fx');
+  function sizeCanvas(){const b=document.getElementById('boardwrap').getBoundingClientRect();canvas.width=b.width;canvas.height=b.height;canvas.style.width=b.width+'px';canvas.style.height=b.height+'px';}
+  let parts=[];
+  function burst(el){const bw=document.getElementById('boardwrap').getBoundingClientRect();const r=el.getBoundingClientRect();
+    const x=r.left-bw.left+r.width/2,y=r.top-bw.top+r.height/2;
+    for(let i=0;i<12;i++)parts.push({x,y,vx:rnd(-2.5,2.5),vy:rnd(-3,.5),life:1,c:pick(['#f0c76a','#ff8a3d','#7fd3c8'])});}
+  function confetti(){const bw=document.getElementById('boardwrap').getBoundingClientRect();
+    for(let i=0;i<70;i++)parts.push({x:rnd(0,bw.width),y:-10,vx:rnd(-1,1),vy:rnd(1,4),life:1,c:pick(['#f0c76a','#ff8a3d','#7fd3c8','#8fe08a'])});}
+  function tick(){const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);
+    parts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.14;p.life-=.02;ctx.globalAlpha=Math.max(0,p.life);ctx.fillStyle=p.c;ctx.beginPath();ctx.arc(p.x,p.y,2.6,0,7);ctx.fill();});
+    parts=parts.filter(p=>p.life>0);ctx.globalAlpha=1;requestAnimationFrame(tick);}
+  function popCell(el,txt){const p=el.querySelector('.pop');if(!p)return;p.textContent=txt;p.style.opacity='1';p.animate([{transform:'translate(-50%,0)',opacity:1},{transform:'translate(-50%,-18px)',opacity:0}],{duration:600});}
+  function bump(){document.getElementById('essence').animate([{transform:'scale(1)'},{transform:'scale(1.18)'},{transform:'scale(1)'}],{duration:200});}
+  let toastT;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),1500);}
+  const baseHint='Hold <b>SPIN</b> to preview the payout. Tap a symbol to trace its <b>synergies</b>.';
+  function setHint(h){document.getElementById('hint').innerHTML=h;}
+
+  function init(){board=starter();essence=0;quota=30;round=1;spinning=false;render();}
+  window.addEventListener('resize',sizeCanvas);
+  window.addEventListener('load',()=>{sizeCanvas();init();tick();});
+})();
+</script>
+</body>
+</html>
