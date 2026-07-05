@@ -48,6 +48,12 @@ core loop:
 - [`pulse.html`](../prototypes/pulse.html) — tap to fire / hold to slow time, build a flow multiplier.
 - [`kismet.html`](../prototypes/kismet.html) — roll, then reroll/nudge/convert/lock the dice; hold Resolve to preview.
 
+Screenshots (also in [`../prototypes/screenshots/`](../prototypes/screenshots/)):
+
+| Tideturn | Sigil Forge | Pulse | Kismet |
+| --- | --- | --- | --- |
+| ![Tideturn](../prototypes/screenshots/tideturn.png) | ![Sigil Forge](../prototypes/screenshots/sigil-forge.png) | ![Pulse](../prototypes/screenshots/pulse.png) | ![Kismet](../prototypes/screenshots/kismet.png) |
+
 ## Suggested next step
 
 Pick the concept whose *core verb* excites you most and build a **single-fight vertical slice**
