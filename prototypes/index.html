@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f1020" />
+  <title>Deckbuilder Prototypes</title>
+  <style>
+    :root{
+      --bg:#0f1020; --bg2:#171933; --ink:#eef1ff; --muted:#a7add0;
+      --line:rgba(255,255,255,.10); --card:rgba(255,255,255,.045);
+    }
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+    html,body{margin:0;padding:0;}
+    body{
+      background:
+        radial-gradient(1200px 700px at 50% -10%, #22254a 0%, transparent 60%),
+        radial-gradient(900px 600px at 90% 110%, #2a1436 0%, transparent 55%),
+        var(--bg);
+      color:var(--ink);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      min-height:100dvh;
+      padding:max(20px,env(safe-area-inset-top)) 18px calc(28px + env(safe-area-inset-bottom));
+      display:flex;flex-direction:column;align-items:center;
+    }
+    .wrap{width:100%;max-width:520px;}
+    header{margin:14px 2px 22px;}
+    .kicker{font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;}
+    h1{font-size:30px;line-height:1.1;margin:0 0 10px;font-weight:800;letter-spacing:-.01em;}
+    .lede{margin:0;color:var(--muted);font-size:15px;line-height:1.5;}
+    .lede b{color:var(--ink);font-weight:600;}
+    .grid{display:flex;flex-direction:column;gap:14px;margin-top:22px;}
+    a.card{
+      display:block;text-decoration:none;color:inherit;
+      background:var(--card);border:1px solid var(--line);border-radius:18px;
+      padding:16px 16px 15px;position:relative;overflow:hidden;
+      transition:transform .12s ease, border-color .12s ease, background .12s ease;
+    }
+    a.card:active{transform:scale(.985);}
+    @media(hover:hover){a.card:hover{border-color:rgba(255,255,255,.28);background:rgba(255,255,255,.07);}}
+    .accent{position:absolute;inset:0 auto 0 0;width:5px;border-radius:18px 0 0 18px;}
+    .c1 .accent{background:linear-gradient(#7fe3d6,#1f8f86);}
+    .c2 .accent{background:linear-gradient(#ffd479,#b5731a);}
+    .c3 .accent{background:linear-gradient(#37e6ff,#c11cff);}
+    .c4 .accent{background:linear-gradient(#e88b6a,#7b8f6a);}
+    .row{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-left:8px;}
+    .name{font-size:20px;font-weight:800;letter-spacing:.005em;}
+    .verb{font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);
+      border:1px solid var(--line);border-radius:999px;padding:4px 9px;white-space:nowrap;}
+    .one{margin:8px 0 10px 8px;color:var(--muted);font-size:14px;line-height:1.5;}
+    .tags{margin-left:8px;display:flex;flex-wrap:wrap;gap:6px;}
+    .tag{font-size:11px;color:var(--muted);background:rgba(255,255,255,.05);border:1px solid var(--line);
+      border-radius:8px;padding:3px 8px;}
+    .go{margin-left:8px;margin-top:12px;font-size:13px;font-weight:700;color:var(--ink);opacity:.85;}
+    .go::after{content:" \2192";}
+    footer{margin:26px 2px 6px;color:var(--muted);font-size:12.5px;line-height:1.6;}
+    footer code{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:6px;font-size:12px;}
+    .num{opacity:.5;font-variant-numeric:tabular-nums;font-weight:700;margin-right:8px;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <p class="kicker">Deckbuilder Concepts · Playable Slices</p>
+      <h1>Four game prototypes</h1>
+      <p class="lede">Tap a concept to play its <b>core gameplay loop</b> on your phone. Each is a self-contained vertical slice — no full game, no install, no dependencies. Best in <b>portrait</b>.</p>
+    </header>
+
+    <nav class="grid">
+      <a class="card c1" href="./01-tideturn/index.html">
+        <span class="accent"></span>
+        <div class="row"><span class="name"><span class="num">01</span>Tideturn</span><span class="verb">Plan</span></div>
+        <p class="one">Perfect-information tactical card combat — stage a whole turn, see an exact ghost preview, then commit.</p>
+        <div class="tags"><span class="tag">3-lane grid</span><span class="tag">ghost preview</span><span class="tag">sumi-e ink</span></div>
+        <div class="go">Play the slice</div>
+      </a>
+
+      <a class="card c2" href="./02-sigil-forge/index.html">
+        <span class="accent"></span>
+        <div class="row"><span class="name"><span class="num">02</span>Sigil Forge</span><span class="verb">Forge</span></div>
+        <p class="one">A synergy engine you deliberately build — spin the board, then steer with targeted draft, fusion & a wish meter.</p>
+        <div class="tags"><span class="tag">reading-order chains</span><span class="tag">spin preview</span><span class="tag">arcane brass</span></div>
+        <div class="go">Play the slice</div>
+      </a>
+
+      <a class="card c3" href="./03-pulse/index.html">
+        <span class="accent"></span>
+        <div class="row"><span class="name"><span class="num">03</span>Pulse</span><span class="verb">Feel</span></div>
+        <p class="one">Real-time, one-thumb, shader-forward duel — hold a card to slow time and aim, swipe to dodge, chase the flow multiplier.</p>
+        <div class="tags"><span class="tag">real-time</span><span class="tag">time-dilation aim</span><span class="tag">neon synthwave</span></div>
+        <div class="go">Play the slice</div>
+      </a>
+
+      <a class="card c4" href="./04-kismet/index.html">
+        <span class="accent"></span>
+        <div class="row"><span class="name"><span class="num">04</span>Kismet</span><span class="verb">Press your luck</span></div>
+        <p class="one">Dice you can cheat — roll a custom pool, reroll/nudge/lock to sculpt it, hold to preview, then resolve.</p>
+        <div class="tags"><span class="tag">dice pool</span><span class="tag">manipulation toolkit</span><span class="tag">tabletop diorama</span></div>
+        <div class="go">Play the slice</div>
+      </a>
+    </nav>
+
+    <footer>
+      To try these on a phone, serve this folder and open it over your local network:<br>
+      <code>python3 -m http.server 8080</code> — then visit <code>http://&lt;your-computer-ip&gt;:8080</code>.<br>
+      Each prototype also opens standalone by double-clicking its <code>index.html</code>.
+    </footer>
+  </div>
+</body>
+</html>
