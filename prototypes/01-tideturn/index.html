@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Tideturn — Prototype</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- SVG filter for wave distortion juice -->
+    <svg width="0" height="0" style="position:absolute">
+      <defs>
+        <filter id="wave-filter">
+          <feTurbulence type="turbulence" baseFrequency="0.02" numOctaves="3" result="turb"/>
+          <feDisplacementMap in="SourceGraphic" in2="turb" scale="8" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+      </defs>
+    </svg>
+
+    <button id="reset-btn" aria-label="Reset battle" title="New battle">↺</button>
+
+    <div id="play-surface">
+      <header id="header">
+        <div class="player-stats">
+          <div class="stat">
+            <span class="stat-label">HP</span>
+            <span class="stat-value hp" id="hp-val">40</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Block</span>
+            <span class="stat-value block" id="block-val">0</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Energy</span>
+            <span class="stat-value energy" id="energy-val">3</span>
+          </div>
+        </div>
+        <div class="turn-badge" id="turn-val">Turn 1</div>
+        <div class="block-ghost" id="block-ghost"></div>
+      </header>
+
+      <div id="board"></div>
+
+      <div id="bottom-zone">
+        <div id="staged-row"></div>
+        <div id="incoming-readout">Survey the tide…</div>
+        <button id="commit-btn" disabled>Commit Turn</button>
+        <div id="hand"></div>
+      </div>
+    </div>
+
+    <canvas id="particles"></canvas>
+
+    <div id="card-tooltip">
+      <h3>Card</h3>
+      <p class="tooltip-text"></p>
+      <div class="tooltip-preview"></div>
+      <div class="tooltip-keywords"></div>
+    </div>
+
+    <div id="glossary-popup">
+      <h4>Keyword</h4>
+      <p></p>
+      <button id="glossary-close">Close</button>
+    </div>
+
+    <div id="overlay">
+      <h2 id="overlay-title">Victory</h2>
+      <p id="overlay-sub" style="color:#f4f0e8;font-size:14px;text-align:center;max-width:260px;"></p>
+      <button id="overlay-restart" class="primary">Play Again</button>
+    </div>
+  </div>
+
+  <script src="engine.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
