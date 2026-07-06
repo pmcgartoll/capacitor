@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Sigil Forge</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <header class="header">
+      <div class="title-row">
+        <span class="logo">Sigil Forge</span>
+        <span class="round-badge" id="round-badge">Round 1</span>
+      </div>
+      <div class="quota-bar">
+        <div class="quota-labels">
+          <span>Quota: <strong id="quota-label">8</strong></span>
+          <span>Earned: <strong id="earned-label">0</strong></span>
+        </div>
+        <div class="quota-track">
+          <div class="quota-fill" id="quota-fill"></div>
+          <div class="quota-preview" id="quota-preview"></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="board-wrap">
+      <div class="preview-banner" id="preview-banner">Preview: 0 essence</div>
+      <div id="board" aria-label="Forge board"></div>
+      <canvas id="synergy-canvas"></canvas>
+    </div>
+
+    <div class="thumb-zone">
+      <div class="total-display">
+        <span class="total-number" id="total-number"></span>
+      </div>
+      <div class="spin-row">
+        <button class="btn btn-secondary btn-icon" id="btn-drawer" aria-label="Open forge tray">⚒</button>
+        <button class="btn btn-spin" id="btn-spin">Forge Spin</button>
+        <button class="btn btn-secondary btn-icon" id="btn-reset" aria-label="Reset run">↺</button>
+      </div>
+    </div>
+
+    <div class="drawer" id="drawer">
+      <div class="drawer-handle" id="drawer-handle">
+        <div class="drawer-handle-bar"></div>
+      </div>
+      <div class="drawer-tabs">
+        <button class="drawer-tab active" data-tab="draft">Draft</button>
+        <button class="drawer-tab" data-tab="catalog">Blueprint</button>
+        <button class="drawer-tab" data-tab="wish">Wish</button>
+        <button class="drawer-tab" data-tab="fusion">Fusion</button>
+      </div>
+      <div class="drawer-content">
+        <div class="tab-panel" id="tab-draft">
+          <p class="draft-hint">Drag a symbol onto an empty slot</p>
+          <div class="draft-row" id="draft-row"></div>
+        </div>
+        <div class="tab-panel hidden" id="tab-catalog">
+          <p class="blueprint-tokens">Blueprint tokens: <strong id="blueprint-count">1</strong> (cost: 3 each)</p>
+          <div class="catalog-grid" id="catalog-grid"></div>
+        </div>
+        <div class="tab-panel hidden" id="tab-wish">
+          <div class="wish-section">
+            <p class="wish-label">Wish for an archetype — pity fills when drafts miss it</p>
+            <div class="wish-buttons" id="wish-buttons"></div>
+            <div class="pity-meter">
+              <div class="pity-track"><div class="pity-fill" id="pity-fill"></div></div>
+              <p class="pity-label" id="pity-label">Pity: 0 / 5</p>
+            </div>
+          </div>
+        </div>
+        <div class="tab-panel hidden" id="tab-fusion">
+          <p class="draft-hint">Drag one board symbol onto another to fuse</p>
+          <ul class="fusion-list" id="fusion-list"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="particle-canvas"></canvas>
+
+  <div class="overlay hidden" id="overlay-win">
+    <div class="modal win">
+      <h2>Forge Complete!</h2>
+      <p id="win-message">You cleared the boss quota. The machine sings.</p>
+      <button class="btn btn-spin" id="btn-win-reset">Forge Again</button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="overlay-lose">
+    <div class="modal lose">
+      <h2>Quota Failed</h2>
+      <p id="lose-message">The forge goes cold.</p>
+      <button class="btn btn-spin" id="btn-lose-reset">Try Again</button>
+    </div>
+  </div>
+
+  <script src="engine.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
