@@ -452,15 +452,16 @@
     const dx = e.clientX - dragStart.x;
     const dy = e.clientY - dragStart.y;
 
-    if (!holdTriggered && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
+    // !ghostEl guard: without it every pointermove past the threshold spawns
+    // (and leaks) another ghost card, leaving a trail of stacked copies.
+    if (!holdTriggered && !ghostEl && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
       clearTimeout(holdTimer);
       hideCardTooltip();
       startDrag(e);
     }
 
     if (ghostEl) {
-      ghostEl.style.left = e.clientX + 'px';
-      ghostEl.style.top = e.clientY + 'px';
+      ghostEl.style.transform = ghostTransform(e.clientX, e.clientY);
       updateDropHighlights(e.clientX, e.clientY);
     }
   }
@@ -483,6 +484,12 @@
     clearDropHighlights();
   }
 
+  // Move the drag ghost via transform only: mutating left/top per pointer move
+  // forces layout + repaint each frame; transforms stay on the compositor.
+  function ghostTransform(x, y) {
+    return 'translate3d(' + x + 'px, ' + y + 'px, 0) translate(-50%, -50%)';
+  }
+
   function startDrag(e) {
     const cardEl = document.querySelector('[data-card-uid="' + dragCardUid + '"]');
     if (!cardEl) return;
@@ -497,9 +504,10 @@
     ghostEl.style.position = 'fixed';
     ghostEl.style.width = '72px';
     ghostEl.style.height = '100px';
-    ghostEl.style.left = e.clientX + 'px';
-    ghostEl.style.top = e.clientY + 'px';
-    ghostEl.style.transform = 'translate(-50%, -50%) rotate(0deg)';
+    ghostEl.style.left = '0';
+    ghostEl.style.top = '0';
+    ghostEl.style.willChange = 'transform';
+    ghostEl.style.transform = ghostTransform(e.clientX, e.clientY);
     ghostEl.style.pointerEvents = 'none';
     ghostEl.innerHTML =
       '<div class="card-cost">' + card.cost + '</div>' +
