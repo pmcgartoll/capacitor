@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Kismet — Prototype</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <svg width="0" height="0" style="position:absolute">
+      <defs>
+        <filter id="warp-filter">
+          <feTurbulence type="turbulence" baseFrequency="0.03" numOctaves="2" result="turb"/>
+          <feDisplacementMap in="SourceGraphic" in2="turb" scale="6" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+      </defs>
+    </svg>
+
+    <button id="reset-btn" aria-label="Reset battle" title="New battle">↺</button>
+
+    <div id="play-surface">
+      <header id="header">
+        <div class="player-stats">
+          <div class="stat">
+            <span class="stat-label">HP</span>
+            <span class="stat-value hp" id="hp-val">30</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Block</span>
+            <span class="stat-value block" id="block-val">0</span>
+          </div>
+        </div>
+        <div class="turn-badge" id="turn-val">Turn 1</div>
+      </header>
+
+      <div id="board">
+        <svg id="target-lines" xmlns="http://www.w3.org/2000/svg"></svg>
+
+        <div id="enemy-target">
+          <div class="enemy-card">
+            <div class="enemy-name" id="enemy-name">Stone Golem</div>
+            <div class="enemy-hp" id="enemy-hp">36</div>
+            <div class="enemy-hp-bar"><div class="enemy-hp-fill" id="enemy-hp-fill" style="width:100%"></div></div>
+            <div class="enemy-intent">
+              <span class="intent-icon">⚔</span>
+              <span id="intent-text">attacks for 8</span>
+              <span class="intent-arrow">↓</span>
+              <strong id="intent-value">8</strong>
+            </div>
+          </div>
+        </div>
+
+        <div id="self-slot">
+          <span class="slot-icon">🛡</span>
+          <span>Block</span>
+        </div>
+      </div>
+
+      <div id="message-bar">Roll your dice to begin.</div>
+
+      <div id="preview-panel">
+        <h3>Hold Preview — Exact Outcome</h3>
+        <div class="preview-grid">
+          <div class="preview-item">
+            <div class="label">Damage dealt</div>
+            <div class="val dmg" id="pv-attack">0</div>
+          </div>
+          <div class="preview-item">
+            <div class="label">Block gained</div>
+            <div class="val block" id="pv-block">0</div>
+          </div>
+          <div class="preview-item">
+            <div class="label">Enemy HP after</div>
+            <div class="val hp" id="pv-enemy-hp">36</div>
+          </div>
+          <div class="preview-item">
+            <div class="label">Your HP after hit</div>
+            <div class="val hp" id="pv-player-hp">30</div>
+          </div>
+          <div class="preview-item">
+            <div class="label">Incoming attack</div>
+            <div class="val dmg" id="pv-incoming">8</div>
+          </div>
+          <div class="preview-item">
+            <div class="label">Damage after block</div>
+            <div class="val dmg" id="pv-after-block">8</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="die-tooltip"></div>
+
+      <div id="bottom-zone">
+        <div id="toolkit">
+          <div id="pip-bar"></div>
+          <button class="tool-btn" id="tool-reroll" disabled>
+            <span class="tool-icon">🎲</span>
+            Reroll
+          </button>
+          <button class="tool-btn" id="tool-nudge-up" disabled>
+            <span class="tool-icon">▲</span>
+            Nudge
+          </button>
+          <button class="tool-btn" id="tool-nudge-down" disabled>
+            <span class="tool-icon">▼</span>
+            Nudge
+          </button>
+          <button class="tool-btn" id="tool-lock" disabled>
+            <span class="tool-icon">🔒</span>
+            Lock
+          </button>
+        </div>
+
+        <div id="dice-tray"></div>
+
+        <div id="action-row">
+          <button id="roll-btn">Roll Dice</button>
+          <button id="resolve-btn" style="display:none">Hold to Resolve</button>
+        </div>
+      </div>
+    </div>
+
+    <canvas id="particles"></canvas>
+    <div id="overlay"></div>
+  </div>
+
+  <script src="engine.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

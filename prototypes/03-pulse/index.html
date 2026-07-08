@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Pulse</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <div class="top-bar">
+      <span class="logo">PULSE</span>
+      <label class="assist-label">
+        <input type="checkbox" id="assist-toggle">
+        Slow telegraphs
+      </label>
+      <button class="btn-icon" id="btn-reset" aria-label="Restart fight">↺</button>
+    </div>
+
+    <div class="canvas-wrap">
+      <canvas id="game-canvas" aria-label="Pulse fight arena"></canvas>
+    </div>
+
+    <div class="hud-strip">
+      <span class="flow-badge" id="flow-label">×1.0</span>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay-hint">
+    <div class="modal">
+      <h1 class="modal-title">PULSE</h1>
+      <p class="modal-sub">One-thumb real-time deck duel</p>
+      <ul class="hint-list">
+        <li><strong>Tap</strong> a card, <strong>drag</strong> to aim at the enemy</li>
+        <li><strong>Hold</strong> to slow time and preview damage — release to fire</li>
+        <li><strong>Swipe</strong> left/right to dodge telegraphed attacks</li>
+        <li>Build <strong>FLOW</strong> with clean hits and dodges — whiffs and damage drop it</li>
+      </ul>
+      <button class="btn-primary" id="btn-hint-start">Enter the Grid</button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="overlay-end">
+    <div class="modal end-modal">
+      <h2 class="end-title" id="end-title">PULSE CLEAR</h2>
+      <p class="end-stats" id="end-stats"></p>
+      <button class="btn-primary" id="btn-restart">Pulse Again</button>
+    </div>
+  </div>
+
+  <script src="engine.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
