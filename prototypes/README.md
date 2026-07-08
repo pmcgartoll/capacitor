@@ -15,9 +15,16 @@ the full game (no run map, meta progression, full content, or backend).
 
 Everything is **zero-build, zero-dependency vanilla HTML/CSS/JS** and works fully offline.
 
-- **Quickest:** open [`index.html`](./index.html) (this folder's landing page) or any prototype's own
-  `index.html` directly in a browser.
-- **On your phone (recommended):** serve this folder over your local network and open it on the device:
+- **On your phone, no computer needed (recommended):** this folder is auto-deployed to GitHub Pages
+  by [`.github/workflows/deploy-pages.yml`](../.github/workflows/deploy-pages.yml) on every push to
+  `main`. Open **`https://pmcgartoll.github.io/capacitor/`** in your phone's browser and tap a
+  concept. Use "Add to Home Screen" for a fullscreen, app-like feel.
+  *Note: GitHub Pages on a **private** repo requires a paid GitHub plan — either make the repo
+  public or upgrade; the workflow itself needs no other setup.*
+- **Quickest on a computer:** open [`index.html`](./index.html) (this folder's landing page) or any
+  prototype's own `index.html` directly in a browser.
+- **On your phone via your own computer:** serve this folder over your local network and open it on
+  the device:
 
   ```bash
   cd prototypes
