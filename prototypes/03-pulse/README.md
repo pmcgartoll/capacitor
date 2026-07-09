@@ -49,11 +49,11 @@ Cards auto-draw into your hand every ~2.4s (max 4). Energy refills continuously.
 | Card | Cost | Effect |
 | --- | --- | --- |
 | Bolt | 25 | Fast single-target projectile |
-| Spray | 35 | Cone AoE — aim carefully |
+| Spray | 35 | Long cone AoE — aim carefully |
 | Shield | 30 | Temporary damage block |
-| Pulse | 40 | Burst around you |
+| Pulse | 40 | Energy burst at aim point (leashed range; crit near center) |
 | Spike | 30 | Heavy piercing bolt |
-| Drain | 35 | Close-range drain + heal |
+| Drain | 35 | Aimed siphon (leashed range) — damage + heal on hit |
 | Nova | 55 | Big AoE finisher at aim point |
 
 (The old Dash card was removed: swiping is the one movement/dodge verb, and a

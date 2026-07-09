@@ -79,13 +79,13 @@
     );
   }
 
+  // Invert the letterboxed view transform, so touch points map to exactly
+  // where things are drawn (plain width/height scaling drifts near the edges).
   function toGameCoords(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
-    const sx = DESIGN_W / rect.width;
-    const sy = DESIGN_H / rect.height;
     return {
-      x: (clientX - rect.left) * sx,
-      y: (clientY - rect.top) * sy,
+      x: (clientX - rect.left - viewOx) / viewScale,
+      y: (clientY - rect.top - viewOy) / viewScale,
     };
   }
 
@@ -737,6 +737,17 @@
     ctx.save();
     ctx.globalAlpha = 0.8;
 
+    // Aimed-AoE cards: show the max-range leash ring the blast is clamped to.
+    if (prev.leash) {
+      ctx.strokeStyle = colorAlpha(card.color, 0.25);
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 7]);
+      ctx.beginPath();
+      ctx.arc(prev.leash.x, prev.leash.y, prev.leash.r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
     // The preview zone IS the hitbox — same drawZone as enemy telegraphs.
     if (prev.zone) {
       drawZone(prev.zone, card.color, { fillAlpha: 0.22, strokeAlpha: 0.9, lineWidth: 2, dashed: true });
@@ -890,9 +901,19 @@
     shake.y = (Math.random() - 0.5) * shake.mag;
     chroma *= 0.9;
 
+    // Clear the whole canvas in device pixels, then clip to the arena.
+    // Clearing only the design rect leaves glows/shakes/zones that spill past
+    // it smeared in the letterbox margins forever.
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+
     ctx.save();
     applyViewTransform();
-    ctx.clearRect(0, 0, DESIGN_W, DESIGN_H);
+    ctx.beginPath();
+    ctx.rect(0, 0, DESIGN_W, DESIGN_H);
+    ctx.clip();
     ctx.translate(shake.x, shake.y);
 
     if (chroma > 0.05) {

@@ -131,8 +131,10 @@
       cost: 35,
       damage: 9,
       type: 'cone',
-      aoe: 90,
-      spread: 0.55,
+      // Long enough to reach the enemy (~287 units away) — the old 90 radius
+      // could never connect from the player's position.
+      aoe: 340,
+      spread: 0.38,
       whiffPenalty: 0.15,
       color: '#ff2da0',
       glyph: '✦',
@@ -154,6 +156,7 @@
       damage: 16,
       type: 'pulse',
       aoe: 105,
+      leash: 300,
       color: '#ff7722',
       glyph: '◎',
     },
@@ -185,7 +188,8 @@
       cost: 35,
       damage: 11,
       heal: 10,
-      range: 160,
+      aoe: 80,
+      leash: 320,
       type: 'drain',
       whiffPenalty: 0.15,
       color: '#30ffaa',
@@ -495,6 +499,15 @@
 
   // ── Cards: one outcome function feeds preview AND resolution ──────────────
 
+  // Clamp an aim point to within `leash` of the player (aimed AoE cards).
+  function leashPoint(p, tx, ty, leash) {
+    const dx = tx - p.x;
+    const dy = ty - p.y;
+    const d = Math.hypot(dx, dy);
+    if (d <= leash) return { x: tx, y: ty };
+    return { x: p.x + (dx / d) * leash, y: p.y + (dy / d) * leash };
+  }
+
   function cardOutcome(g, card, tx, ty) {
     const p = g.player;
     const e = g.enemy;
@@ -520,15 +533,15 @@
         out.willHit = e.alive && circleOverlaps(out.zone, e.x, e.y, e.radius);
         break;
       case 'pulse':
-        out.zone = Shape.circle(p.x, p.y, card.aoe);
+      case 'drain': {
+        const c = leashPoint(p, tx, ty, card.leash);
+        out.zone = Shape.circle(c.x, c.y, card.aoe);
+        out.leash = { x: p.x, y: p.y, r: card.leash };
         out.willHit = e.alive && circleOverlaps(out.zone, e.x, e.y, e.radius);
         break;
+      }
       case 'nova':
         out.zone = Shape.circle(tx, ty, card.aoe);
-        out.willHit = e.alive && circleOverlaps(out.zone, e.x, e.y, e.radius);
-        break;
-      case 'drain':
-        out.zone = Shape.circle(p.x, p.y, card.range);
         out.willHit = e.alive && circleOverlaps(out.zone, e.x, e.y, e.radius);
         break;
       case 'shield':
@@ -597,7 +610,7 @@
       if (out.willHit) {
         const e = g.enemy;
         const crit = card.type === 'nova'
-          || (card.type === 'pulse' && Math.hypot(e.x - g.player.x, e.y - g.player.y) < card.aoe * 0.5);
+          || (card.type === 'pulse' && Math.hypot(e.x - out.zone.x, e.y - out.zone.y) < card.aoe * 0.5);
         damageEnemy(g, e, card.damage, crit);
         if (card.type === 'nova') g.hitStop = 0.12;
         if (card.heal) {
