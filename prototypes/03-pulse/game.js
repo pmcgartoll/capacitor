@@ -1,5 +1,10 @@
 /**
  * Pulse — canvas renderer, input, juice, audio
+ *
+ * Rendering rule: anything that can hit is a Shape from the engine, and this
+ * file draws that shape verbatim (drawZone). Enemy telegraphs and card
+ * previews go through the same code path, so the picture on screen is always
+ * the exact hitbox the engine will test.
  */
 (function () {
   'use strict';
@@ -40,14 +45,14 @@
 
   const particles = [];
   const floatTexts = [];
+  const zoneFlashes = [];
   const shake = { x: 0, y: 0, mag: 0, decay: 8 };
   const trails = [];
   let chroma = 0;
-  let bloomPass = null;
   let audioCtx = null;
 
-  function mulberryColor(hex, alpha) {
-    return hex + Math.floor(alpha * 255).toString(16).padStart(2, '0');
+  function colorAlpha(hex, alpha) {
+    return hex + Math.floor(Math.max(0, Math.min(1, alpha)) * 255).toString(16).padStart(2, '0');
   }
 
   let viewScale = 1;
@@ -177,6 +182,13 @@
     });
   }
 
+  function zoneCenter(zone) {
+    if (!zone) return { x: game.player.x, y: game.player.y };
+    if (zone.kind === 'circle' || zone.kind === 'cone') return { x: zone.x, y: zone.y };
+    if (zone.kind === 'band') return { x: zone.x, y: game.player.y };
+    return { x: (zone.x1 + zone.x2) / 2, y: (zone.y1 + zone.y2) / 2 };
+  }
+
   function handleEvents(events) {
     for (const ev of events) {
       switch (ev.type) {
@@ -199,19 +211,41 @@
         case 'dodge':
         case 'swipe_dodge':
           spawnParticles(game.player.x, game.player.y, '#a0ff40', 10, 100);
+          if (ev.type === 'dodge') floatText(game.player.x, game.player.y - 44, 'DODGE', '#a0ff40', 14);
           playTone(440, 0.08, 'triangle', 0.1);
           vibrate(8);
           break;
+        case 'attack_lock':
+          // The zone just froze — this is the "now dodge!" cue.
+          playTone(740, 0.09, 'square', 0.1);
+          vibrate(15);
+          break;
+        case 'attack_fire':
+          zoneFlashes.push({ zone: ev.data.zone, color: ev.data.color, life: 0.28, maxLife: 0.28 });
+          addShake(4);
+          break;
         case 'fire':
-        case 'cone':
-        case 'pulse_wave':
-        case 'nova':
           spawnParticles(ev.data.x, ev.data.y, ev.data.color || '#00f0ff', 16, 150);
           playTone(520, 0.06, 'sine', 0.08);
           break;
-        case 'flow_up':
-          if (flowLabel) flowLabel.textContent = '×' + game.flow.multiplier.toFixed(1);
+        case 'zone_cast': {
+          zoneFlashes.push({ zone: ev.data.zone, color: ev.data.color, life: 0.3, maxLife: 0.3 });
+          const c = zoneCenter(ev.data.zone);
+          spawnParticles(c.x, c.y, ev.data.color, 18, 160);
+          playTone(ev.data.type === 'nova' ? 200 : 520, 0.1, 'sine', 0.1);
           break;
+        }
+        case 'whiff':
+          floatText(game.player.x, game.player.y - 44, 'WHIFF', '#ffaa00', 14);
+          playTone(160, 0.12, 'triangle', 0.08);
+          break;
+        case 'shield':
+          floatText(game.player.x, game.player.y - 44, '+' + ev.data.block + ' BLOCK', '#4d8cff', 16);
+          break;
+        case 'drain':
+          floatText(game.player.x, game.player.y - 44, '+' + ev.data.heal, '#30ffaa', 16);
+          break;
+        case 'flow_up':
         case 'flow_down':
           if (flowLabel) flowLabel.textContent = '×' + game.flow.multiplier.toFixed(1);
           break;
@@ -258,6 +292,7 @@
     game.aiming = null;
     particles.length = 0;
     floatTexts.length = 0;
+    zoneFlashes.length = 0;
     if (flowLabel) flowLabel.textContent = '×1.0';
     running = true;
     accumulator = 0;
@@ -381,48 +416,86 @@
     ctx.fillRect(0, 0, w, gridTop + 40);
   }
 
-  function drawTelegraph(enemy) {
+  // ── Zones: the single drawing path for every hitbox ───────────────────────
+
+  function traceZone(zone) {
+    ctx.beginPath();
+    if (zone.kind === 'circle') {
+      ctx.arc(zone.x, zone.y, zone.r, 0, Math.PI * 2);
+    } else if (zone.kind === 'band') {
+      ctx.rect(zone.x - zone.halfW, 0, zone.halfW * 2, DESIGN_H);
+    } else if (zone.kind === 'cone') {
+      ctx.moveTo(zone.x, zone.y);
+      ctx.arc(zone.x, zone.y, zone.r, zone.angle - zone.spread, zone.angle + zone.spread);
+      ctx.closePath();
+    } else if (zone.kind === 'beam') {
+      // Trace the beam as a thick quad so fill and stroke both work.
+      const dx = zone.x2 - zone.x1;
+      const dy = zone.y2 - zone.y1;
+      const len = Math.hypot(dx, dy) || 1;
+      const nx = (-dy / len) * zone.halfW;
+      const ny = (dx / len) * zone.halfW;
+      ctx.moveTo(zone.x1 + nx, zone.y1 + ny);
+      ctx.lineTo(zone.x2 + nx, zone.y2 + ny);
+      ctx.lineTo(zone.x2 - nx, zone.y2 - ny);
+      ctx.lineTo(zone.x1 - nx, zone.y1 - ny);
+      ctx.closePath();
+    }
+  }
+
+  function drawZone(zone, color, opts) {
+    if (!zone) return;
+    const o = opts || {};
+    ctx.save();
+    traceZone(zone);
+    ctx.fillStyle = colorAlpha(color, o.fillAlpha != null ? o.fillAlpha : 0.18);
+    ctx.fill();
+    ctx.strokeStyle = colorAlpha(color, o.strokeAlpha != null ? o.strokeAlpha : 0.9);
+    ctx.lineWidth = o.lineWidth || 2;
+    if (o.dashed) ctx.setLineDash([8, 6]);
+    if (o.glow) {
+      ctx.shadowColor = color;
+      ctx.shadowBlur = o.glow;
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  function drawEnemyAttack(enemy) {
     const atk = enemy.attack;
     if (!atk || !atk.active) return;
     const prog = Math.min(1, atk.progress);
-    const p = game.player;
-    const alpha = 0.35 + prog * 0.45;
 
-    ctx.save();
-    if (atk.type === 'aoe') {
-      const tx = p.x;
-      const ty = p.y;
-      ctx.strokeStyle = mulberryColor(atk.color, alpha);
-      ctx.fillStyle = mulberryColor(atk.color, alpha * 0.25);
-      ctx.lineWidth = 2;
+    // Tracking phase: dashed outline. Locked phase: solid, glowing, filling up.
+    drawZone(atk.zone, atk.color, atk.locked
+      ? { fillAlpha: 0.12 + prog * 0.22, strokeAlpha: 0.95, lineWidth: 3, glow: 14 }
+      : { fillAlpha: 0.08, strokeAlpha: 0.55, lineWidth: 2, dashed: true });
+
+    // Danger readout on the player: am I inside the zone right now?
+    const p = game.player;
+    const inZone = PulseEngine.circleOverlaps(atk.zone, p.x, p.y, p.radius);
+    if (inZone) {
+      ctx.save();
+      ctx.strokeStyle = atk.locked ? '#ff2244' : colorAlpha('#ff2244', 0.6);
+      ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.arc(tx, ty, atk.radius * (0.6 + prog * 0.4), 0, Math.PI * 2);
-      ctx.fill();
+      ctx.arc(p.x, p.y, p.radius + 10, 0, Math.PI * 2);
       ctx.stroke();
-      drawArrow(enemy.x, enemy.y + 30, tx, ty, atk.color, prog);
-    } else if (atk.type === 'swipe') {
-      const side = atk.dir < 0 ? 'LEFT' : 'RIGHT';
-      const bx = p.x + atk.dir * 60;
-      ctx.fillStyle = mulberryColor(atk.color, alpha * 0.3);
-      ctx.fillRect(bx - atk.width / 2, p.y - 40, atk.width, 80);
-      ctx.fillStyle = atk.color;
-      ctx.font = 'bold 12px system-ui';
-      ctx.textAlign = 'center';
-      ctx.fillText('SWIPE ' + side, bx, p.y - 50);
-      drawArrow(enemy.x, enemy.y, bx, p.y, atk.color, prog);
-    } else if (atk.type === 'beam') {
-      ctx.strokeStyle = mulberryColor(atk.color, alpha);
-      ctx.lineWidth = atk.width;
-      ctx.beginPath();
-      ctx.moveTo(enemy.x, enemy.y);
-      ctx.lineTo(p.x, p.y);
-      ctx.stroke();
-      drawArrow(enemy.x, enemy.y, p.x, p.y, atk.color, prog);
+      if (atk.locked) {
+        ctx.fillStyle = '#ff4466';
+        ctx.font = 'bold 13px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('SWIPE!', p.x, p.y - p.radius - 18);
+      }
+      ctx.restore();
     }
 
+    // Windup bar + label above the enemy.
     const barW = 100;
     const barX = enemy.x - barW / 2;
     const barY = enemy.y - enemy.radius - 28;
+    ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.fillRect(barX, barY, barW, 8);
     ctx.fillStyle = atk.color;
@@ -430,34 +503,27 @@
     ctx.shadowBlur = 8;
     ctx.fillRect(barX, barY, barW * prog, 8);
     ctx.shadowBlur = 0;
+    // Lock marker on the bar.
+    const lockX = barX + barW * atk.def.lockAt;
     ctx.fillStyle = '#fff';
+    ctx.fillRect(lockX - 1, barY - 2, 2, 12);
     ctx.font = '10px system-ui';
     ctx.textAlign = 'center';
-    ctx.fillText(atk.name + ' ' + Math.ceil(atk.damage), enemy.x, barY - 4);
+    ctx.fillText(atk.name + ' ' + Math.ceil(atk.damage) + (atk.locked ? ' — LOCKED' : ''), enemy.x, barY - 4);
     ctx.restore();
   }
 
-  function drawArrow(x1, y1, x2, y2, color, prog) {
-    const mx = x1 + (x2 - x1) * prog;
-    const my = y1 + (y2 - y1) * prog;
-    const angle = Math.atan2(y2 - y1, x2 - x1);
-    ctx.save();
-    ctx.strokeStyle = mulberryColor(color, 0.7);
-    ctx.fillStyle = color;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(mx, my);
-    ctx.stroke();
-    ctx.translate(mx, my);
-    ctx.rotate(angle);
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(-10, -5);
-    ctx.lineTo(-10, 5);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
+  function drawZoneFlashes(dt) {
+    for (let i = zoneFlashes.length - 1; i >= 0; i--) {
+      const f = zoneFlashes[i];
+      f.life -= dt;
+      if (f.life <= 0) {
+        zoneFlashes.splice(i, 1);
+        continue;
+      }
+      const a = f.life / f.maxLife;
+      drawZone(f.zone, f.color, { fillAlpha: 0.35 * a, strokeAlpha: a, lineWidth: 3, glow: 18 * a });
+    }
   }
 
   function drawEnemy(e) {
@@ -504,8 +570,6 @@
     ctx.textAlign = 'center';
     ctx.fillText(e.name, 0, -r - 24);
     ctx.restore();
-
-    drawTelegraph(e);
   }
 
   function drawPlayer(p) {
@@ -667,54 +731,74 @@
     const card = game.hand[pointer.cardIndex];
     if (!card) return;
     const prev = PulseEngine.previewCard(game, card, game.aiming.tx, game.aiming.ty);
+    const e = game.enemy;
+    const p = game.player;
 
     ctx.save();
-    ctx.globalAlpha = 0.75;
-    for (const s of prev.shapes) {
-      ctx.strokeStyle = s.color;
-      ctx.fillStyle = mulberryColor(s.color, s.alpha || 0.3);
-      ctx.lineWidth = 2;
-      if (s.kind === 'line') {
-        ctx.setLineDash([6, 6]);
-        ctx.beginPath();
-        ctx.moveTo(s.x1, s.y1);
-        ctx.lineTo(s.x2, s.y2);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      } else if (s.kind === 'circle') {
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-      } else if (s.kind === 'cone') {
-        ctx.beginPath();
-        ctx.moveTo(s.x, s.y);
-        ctx.arc(s.x, s.y, s.r, s.angle - s.spread, s.angle + s.spread);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-      } else if (s.kind === 'ring') {
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-        ctx.stroke();
-      } else if (s.kind === 'dash') {
-        ctx.fillStyle = mulberryColor(s.color, 0.4);
-        ctx.fillRect(s.x + s.dir * 20, s.y - 20, s.dir * 70, 40);
-      }
+    ctx.globalAlpha = 0.8;
+
+    // The preview zone IS the hitbox — same drawZone as enemy telegraphs.
+    if (prev.zone) {
+      drawZone(prev.zone, card.color, { fillAlpha: 0.22, strokeAlpha: 0.9, lineWidth: 2, dashed: true });
     }
+    if (prev.aimLine) {
+      ctx.strokeStyle = card.color;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 6]);
+      ctx.beginPath();
+      ctx.moveTo(prev.aimLine.x1, prev.aimLine.y1);
+      // Extend the aim line well past the finger so the flight path is clear.
+      const dx = prev.aimLine.x2 - prev.aimLine.x1;
+      const dy = prev.aimLine.y2 - prev.aimLine.y1;
+      const len = Math.hypot(dx, dy) || 1;
+      ctx.lineTo(prev.aimLine.x1 + (dx / len) * 1000, prev.aimLine.y1 + (dy / len) * 1000);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    if (card.type === 'shield') {
+      ctx.strokeStyle = colorAlpha(card.color, 0.6);
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.radius + 18, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Verdict: highlight the enemy when the shot connects; say so in words.
     if (prev.damage) {
-      const tx = prev.willHit ? game.enemy.x : prev.tx;
-      const ty = prev.willHit ? game.enemy.y - 50 : prev.ty;
-      ctx.fillStyle = prev.willHit ? '#00ffaa' : '#ffaa00';
-      ctx.font = 'bold 20px system-ui';
-      ctx.textAlign = 'center';
-      ctx.fillText(prev.damage + (prev.willHit ? ' ✓' : '?'), tx, ty);
+      if (prev.willHit && e.alive) {
+        ctx.strokeStyle = '#00ffaa';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#00ffaa';
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.radius + 8, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#00ffaa';
+        ctx.font = 'bold 20px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('HIT −' + prev.damage, e.x, e.y - e.radius - 34);
+      } else {
+        ctx.fillStyle = '#ffaa00';
+        ctx.font = 'bold 16px system-ui';
+        ctx.textAlign = 'center';
+        const c = prev.zone ? zoneCenter(prev.zone) : { x: prev.tx, y: prev.ty };
+        ctx.fillText('MISS', c.x, c.y - 10);
+      }
     }
     if (prev.block) {
       ctx.fillStyle = '#4d8cff';
       ctx.font = 'bold 16px system-ui';
       ctx.textAlign = 'center';
-      ctx.fillText('+' + prev.block + ' BLOCK', game.player.x, game.player.y - 50);
+      ctx.fillText('+' + prev.block + ' BLOCK', p.x, p.y - 50);
+    }
+    if (prev.heal && prev.willHit) {
+      ctx.fillStyle = '#30ffaa';
+      ctx.font = 'bold 14px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('+' + prev.heal + ' HP', p.x, p.y + p.radius + 24);
     }
     if (pointer.dilated) {
       ctx.fillStyle = 'rgba(255,255,255,0.85)';
@@ -751,7 +835,7 @@
         continue;
       }
       const a = p.life / p.maxLife;
-      ctx.fillStyle = mulberryColor(p.color, a);
+      ctx.fillStyle = colorAlpha(p.color, a);
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.size * a, 0, Math.PI * 2);
       ctx.fill();
@@ -763,7 +847,7 @@
         trails.splice(i, 1);
         continue;
       }
-      ctx.fillStyle = mulberryColor(t.color, t.life / 0.15 * 0.4);
+      ctx.fillStyle = colorAlpha(t.color, t.life / 0.15 * 0.4);
       ctx.beginPath();
       ctx.arc(t.x, t.y, 4, 0, Math.PI * 2);
       ctx.fill();
@@ -798,7 +882,7 @@
     ctx.fillText('PAUSED', DESIGN_W / 2, DESIGN_H / 2);
   }
 
-  function render(alpha) {
+  function render() {
     const w = DESIGN_W;
     const h = DESIGN_H;
     shake.mag = Math.max(0, shake.mag - shake.decay * (1 / 60));
@@ -830,6 +914,8 @@
 
   function drawScene(w, h) {
     drawGrid(w, h);
+    drawEnemyAttack(game.enemy);
+    drawZoneFlashes(1 / 60);
     drawProjectiles();
     drawEnemy(game.enemy);
     drawPlayer(game.player);
@@ -874,7 +960,7 @@
       handleEvents(PulseEngine.drainEvents(game));
     }
 
-    render(accumulator / FIXED_DT);
+    render();
     requestAnimationFrame(loop);
   }
 

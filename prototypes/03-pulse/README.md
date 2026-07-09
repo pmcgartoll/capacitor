@@ -23,7 +23,7 @@ No build step. No dependencies. Works offline.
 
 1. **Hold a card to slow time** — tap a card in the bottom hand, drag toward the enemy, and hold (~200ms). The world crawls; damage rings and aim lines show exactly what will happen. Release to fire at full speed with particles and shake.
 
-2. **Swipe to dodge** — when the enemy telegraphs a lateral swipe (colored zone + arrow), flick left or right on the arena (not on a card) to dodge. Clean dodges build **FLOW**.
+2. **Swipe to dodge** — every enemy attack telegraphs its **exact hit zone** (dashed outline while it tracks you, solid + glowing once it **locks**). Flick left or right on the arena (not on a card) to get out of the zone before the windup bar fills. Clean dodges build **FLOW**.
 
 3. **Build the flow multiplier** — land hits, dodge attacks, and play without taking damage to raise the ×FLOW meter (top-right arc). Higher flow = more damage and louder visuals. Getting hit or whiffing AoE shots drops it.
 
@@ -39,7 +39,7 @@ No build step. No dependencies. Works offline.
 | Drag | Aim at enemy / position |
 | Hold card | Time-dilation preview |
 | Release | Play card (costs energy) |
-| Swipe L/R on arena | Dodge telegraphed swipe attacks |
+| Swipe L/R on arena | Move / dodge (brief i-frames) — the only movement verb |
 | ↺ button | Restart fight |
 
 Cards auto-draw into your hand every ~2.4s (max 4). Energy refills continuously.
@@ -51,13 +51,32 @@ Cards auto-draw into your hand every ~2.4s (max 4). Energy refills continuously.
 | Bolt | 25 | Fast single-target projectile |
 | Spray | 35 | Cone AoE — aim carefully |
 | Shield | 30 | Temporary damage block |
-| Dash | 20 | Quick dodge + i-frames |
 | Pulse | 40 | Burst around you |
 | Spike | 30 | Heavy piercing bolt |
 | Drain | 35 | Close-range drain + heal |
 | Nova | 55 | Big AoE finisher at aim point |
 
+(The old Dash card was removed: swiping is the one movement/dodge verb, and a
+card duplicating it for energy muddied the controls.)
+
 ## Tech notes
+
+### Architecture: zones as shared data
+
+Every attack — enemy pattern or player card — declares its hit area as a **Shape**
+(circle / band / beam / cone) built by a pure `zone(gameState)` function. One shared
+`circleOverlaps` test resolves all of them, and the renderer draws the shape object
+verbatim (`drawZone`). Because the telegraph, the hold-preview verdict, and the damage
+resolution all consume the *same* shape, the picture on screen is always the exact
+hitbox — telegraphs cannot lie by construction.
+
+Enemy attacks **track** the player during windup, then **lock** at a fixed fraction of
+the windup (`lockAt`, marked on the windup bar). After the lock the zone freezes, so
+moving out of it is a real, rewarded dodge. One resolution rule for every attack:
+are you inside the zone when the bar fills?
+
+Adding a new attack or zone card is data, not code: a windup, a damage number, a color,
+and a `zone()` function.
 
 - Fixed-timestep simulation (60 Hz accumulator) decoupled from `requestAnimationFrame` rendering
 - Seeded RNG (`mulberry32`, default seed `1337`) for reproducible runs

@@ -1,5 +1,15 @@
 /**
  * Pulse — deterministic game logic (renderer-agnostic)
+ *
+ * Architecture: "zones as shared data".
+ * Every attack — enemy pattern or player card — declares its hit area as a
+ * Shape. The SAME shape object is used to (1) draw the telegraph/preview,
+ * (2) answer "will this hit?", and (3) resolve damage. Telegraphs therefore
+ * cannot lie: what you see is exactly the hitbox that resolves.
+ *
+ * Enemy attacks track the player during windup, then LOCK at a fixed point
+ * (lockAt fraction of windup). After the lock the zone is frozen, giving a
+ * real window where moving out of the zone dodges the attack.
  */
 (function (global) {
   'use strict';
@@ -35,6 +45,75 @@
     };
   }
 
+  // ── Shapes: plain data + one shared overlap test ──────────────────────────
+
+  const Shape = {
+    circle(x, y, r) {
+      return { kind: 'circle', x, y, r };
+    },
+    // Full-height vertical strip centered on x (player only moves in x).
+    band(x, halfW) {
+      return { kind: 'band', x, halfW };
+    },
+    // Thick line segment.
+    beam(x1, y1, x2, y2, halfW) {
+      return { kind: 'beam', x1, y1, x2, y2, halfW };
+    },
+    cone(x, y, angle, spread, r) {
+      return { kind: 'cone', x, y, angle, spread, r };
+    },
+  };
+
+  function circleOverlaps(shape, cx, cy, cr) {
+    if (!shape) return false;
+    switch (shape.kind) {
+      case 'circle':
+        return Math.hypot(cx - shape.x, cy - shape.y) < shape.r + cr;
+      case 'band':
+        return Math.abs(cx - shape.x) < shape.halfW + cr;
+      case 'beam': {
+        const dx = shape.x2 - shape.x1;
+        const dy = shape.y2 - shape.y1;
+        const len2 = dx * dx + dy * dy || 1;
+        let t = ((cx - shape.x1) * dx + (cy - shape.y1) * dy) / len2;
+        t = Math.max(0, Math.min(1, t));
+        const px = shape.x1 + t * dx;
+        const py = shape.y1 + t * dy;
+        return Math.hypot(cx - px, cy - py) < shape.halfW + cr;
+      }
+      case 'cone': {
+        const dist = Math.hypot(cx - shape.x, cy - shape.y);
+        if (dist >= shape.r + cr) return false;
+        const a = Math.atan2(cy - shape.y, cx - shape.x);
+        const diff = Math.abs(Math.atan2(Math.sin(a - shape.angle), Math.cos(a - shape.angle)));
+        // Widen by the angular radius the target circle subtends, so a cone
+        // grazing the edge of the enemy counts the same as the drawn wedge.
+        const slack = dist > 0.001 ? Math.asin(Math.min(1, cr / dist)) : Math.PI;
+        return diff < shape.spread + slack;
+      }
+      default:
+        return false;
+    }
+  }
+
+  // Does a ray from (x1,y1) toward (x2,y2) pass within r of (cx,cy)?
+  function rayHitsCircle(x1, y1, x2, y2, cx, cy, r) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const len = Math.hypot(dx, dy);
+    if (len < 0.001) return Math.hypot(cx - x1, cy - y1) < r;
+    const nx = dx / len;
+    const ny = dy / len;
+    const along = (cx - x1) * nx + (cy - y1) * ny;
+    if (along < 0) return false;
+    const perp = Math.abs((cx - x1) * -ny + (cy - y1) * nx);
+    return perp < r;
+  }
+
+  // ── Cards ──────────────────────────────────────────────────────────────────
+  // Dash was removed: swiping is the single movement/dodge verb, so a card
+  // that duplicated it only muddied the controls.
+
   const CARD_DEFS = {
     bolt: {
       id: 'bolt',
@@ -54,6 +133,7 @@
       type: 'cone',
       aoe: 90,
       spread: 0.55,
+      whiffPenalty: 0.15,
       color: '#ff2da0',
       glyph: '✦',
     },
@@ -66,15 +146,6 @@
       type: 'shield',
       color: '#4d8cff',
       glyph: '◇',
-    },
-    dash: {
-      id: 'dash',
-      name: 'Dash',
-      cost: 20,
-      type: 'dash',
-      iframe: 0.45,
-      color: '#a0ff40',
-      glyph: '»',
     },
     pulse: {
       id: 'pulse',
@@ -93,6 +164,7 @@
       damage: 38,
       type: 'nova',
       aoe: 130,
+      whiffPenalty: 0.2,
       color: '#e040ff',
       glyph: '✸',
     },
@@ -113,65 +185,84 @@
       cost: 35,
       damage: 11,
       heal: 10,
+      range: 160,
       type: 'drain',
+      whiffPenalty: 0.15,
       color: '#30ffaa',
       glyph: '♥',
     },
   };
 
   const STARTER_DECK = [
-    'bolt', 'bolt', 'spray', 'shield', 'dash', 'pulse', 'spike', 'drain', 'nova',
+    'bolt', 'bolt', 'spray', 'shield', 'pulse', 'spike', 'drain', 'nova',
   ];
 
+  // ── Enemy attack patterns ──────────────────────────────────────────────────
+  // zone(g) builds the hit shape from current game state. It is re-evaluated
+  // every step until the attack locks (progress >= lockAt), then frozen.
+  // hint: what escapes it — shown by the renderer.
+
   const ATTACK_PATTERNS = [
-  {
-    id: 'slam',
-    name: 'Slam',
-    windup: 2.0,
-    damage: 14,
-    type: 'aoe',
-    radius: 70,
-    color: '#ff4466',
-  },
-  {
-    id: 'swipe_left',
-    name: 'Swipe',
-    windup: 1.6,
-    damage: 12,
-    type: 'swipe',
-    dir: -1,
-    width: 120,
-    color: '#ff8844',
-  },
-  {
-    id: 'swipe_right',
-    name: 'Swipe',
-    windup: 1.6,
-    damage: 12,
-    type: 'swipe',
-    dir: 1,
-    width: 120,
-    color: '#ff8844',
-  },
-  {
-    id: 'beam',
-    name: 'Beam',
-    windup: 1.9,
-    damage: 18,
-    type: 'beam',
-    width: 36,
-    color: '#cc44ff',
-  },
-  {
-    id: 'burst',
-    name: 'Burst',
-    windup: 1.1,
-    damage: 9,
-    type: 'aoe',
-    radius: 55,
-    color: '#ff2266',
-  },
-];
+    {
+      id: 'slam',
+      name: 'Slam',
+      windup: 2.0,
+      lockAt: 0.6,
+      damage: 14,
+      color: '#ff4466',
+      hint: 'move',
+      zone: (g) => Shape.circle(g.player.x, g.player.y, 70),
+    },
+    {
+      id: 'swipe_left',
+      name: 'Claw',
+      windup: 1.6,
+      lockAt: 0.55,
+      damage: 12,
+      color: '#ff8844',
+      hint: 'move',
+      zone: (g) => Shape.band(g.player.x, 55),
+    },
+    {
+      id: 'swipe_right',
+      name: 'Claw',
+      windup: 1.6,
+      lockAt: 0.55,
+      damage: 12,
+      color: '#ff8844',
+      hint: 'move',
+      zone: (g) => Shape.band(g.player.x, 55),
+    },
+    {
+      id: 'beam',
+      name: 'Beam',
+      windup: 1.9,
+      lockAt: 0.7,
+      damage: 18,
+      color: '#cc44ff',
+      hint: 'move',
+      zone: (g) => {
+        const e = g.enemy;
+        const p = g.player;
+        const dx = p.x - e.x;
+        const dy = p.y - e.y;
+        const len = Math.hypot(dx, dy) || 1;
+        // Extend the beam through the player to the arena edge.
+        const reach = 1200;
+        return Shape.beam(e.x, e.y, e.x + (dx / len) * reach, e.y + (dy / len) * reach, 18);
+      },
+    },
+    {
+      id: 'burst',
+      name: 'Burst',
+      windup: 1.1,
+      lockAt: 0.5,
+      damage: 9,
+      color: '#ff2266',
+      hint: 'move',
+      zone: (g) => Shape.circle(g.player.x, g.player.y, 55),
+    },
+  ];
 
   function cardInstance(defId, uid) {
     return { uid, defId, ...CARD_DEFS[defId] };
@@ -223,8 +314,6 @@
         maxEnergy: 100,
         energyRate: 18,
         iframe: 0,
-        dodgeDir: 0,
-        dodgeTimer: 0,
         hitFlash: 0,
       },
       flow: {
@@ -241,11 +330,9 @@
       maxHand: 4,
       enemy: createEnemy(rng, 1),
       projectiles: [],
-      effects: [],
       aiming: null,
       events: [],
       patternIndex: 0,
-      dodgeWindow: null,
       stats: { hits: 0, dodges: 0, cardsPlayed: 0, damageDealt: 0 },
     };
   }
@@ -298,7 +385,7 @@
     g.stats.hits += 1;
     flowBump(g, crit ? 0.22 : 0.12, 'hit');
     pushEvent(g, 'enemy_hit', { damage: dmg, crit, x: enemy.x, y: enemy.y });
-      if (enemy.hp <= 0) {
+    if (enemy.hp <= 0) {
       enemy.hp = 0;
       enemy.alive = false;
       pushEvent(g, 'enemy_defeated', { phase: enemy.phase });
@@ -350,68 +437,111 @@
     return g;
   }
 
+  // ── Enemy attacks: track → lock → resolve ─────────────────────────────────
+
   function pickNextAttack(g, enemy) {
-    const patterns = ATTACK_PATTERNS.slice();
-    const phase = enemy.phase;
-    let pool = patterns;
-    if (phase === 1) {
-      pool = patterns.filter((p) => p.id !== 'burst');
+    let pool = ATTACK_PATTERNS;
+    if (enemy.phase === 1) {
+      pool = pool.filter((p) => p.id !== 'burst');
     }
-    const pat = pool[g.patternIndex % pool.length];
+    const def = pool[g.patternIndex % pool.length];
     g.patternIndex += 1;
     const slow = g.assistSlow ? 1.35 : 1;
-    const phaseMul = phase >= 2 ? 0.82 : 1;
+    const phaseMul = enemy.phase >= 2 ? 0.82 : 1;
     return {
-      ...pat,
+      def,
+      id: def.id,
+      name: def.name,
+      damage: def.damage,
+      color: def.color,
+      hint: def.hint,
+      windup: def.windup * slow * phaseMul,
       progress: 0,
-      windup: pat.windup * slow * phaseMul,
+      locked: false,
+      zone: def.zone(g),
       active: true,
-      resolved: false,
     };
   }
 
-  function resolveAttack(g, atk) {
-    if (atk.resolved) return;
-    atk.resolved = true;
-    const p = g.player;
-    const e = g.enemy;
-    pushEvent(g, 'attack_fire', { attack: atk.id });
-
-    if (atk.type === 'aoe') {
-      const dx = p.x - e.x;
-      const dy = p.y - e.y;
-      const dist = Math.hypot(dx, dy);
-      if (dist < atk.radius + p.radius) {
-        damagePlayer(g, atk.damage, atk.id);
+  function stepAttack(g, atk, sdt) {
+    atk.progress += sdt / atk.windup;
+    if (!atk.locked) {
+      if (atk.progress >= atk.def.lockAt) {
+        atk.locked = true;
+        pushEvent(g, 'attack_lock', { id: atk.id });
       } else {
-        flowBump(g, 0.1, 'avoid');
-      }
-    } else if (atk.type === 'swipe') {
-      g.dodgeWindow = { dir: atk.dir, timer: 0.35, attack: atk.id };
-      const needed = atk.dir;
-      if (p.dodgeDir === needed && p.dodgeTimer > 0) {
-        flowBump(g, 0.2, 'dodge');
-        g.stats.dodges += 1;
-        pushEvent(g, 'dodge', { source: atk.id });
-      } else {
-        damagePlayer(g, atk.damage, atk.id);
-      }
-    } else if (atk.type === 'beam') {
-      const dx = p.x - e.x;
-      const dy = p.y - e.y;
-      const len = Math.hypot(dx, dy) || 1;
-      const nx = dx / len;
-      const ny = dy / len;
-      const px = p.x - e.x;
-      const py = p.y - e.y;
-      const along = px * nx + py * ny;
-      const perp = Math.abs(px * -ny + py * nx);
-      if (along > 0 && perp < atk.width + p.radius) {
-        damagePlayer(g, atk.damage, atk.id);
-      } else {
-        flowBump(g, 0.1, 'avoid');
+        atk.zone = atk.def.zone(g);
       }
     }
+    if (atk.progress >= 1) {
+      resolveAttack(g, atk);
+      return true;
+    }
+    return false;
+  }
+
+  function resolveAttack(g, atk) {
+    const p = g.player;
+    pushEvent(g, 'attack_fire', { attack: atk.id, zone: atk.zone, color: atk.color });
+    // One rule for every attack: are you inside the telegraphed zone?
+    if (circleOverlaps(atk.zone, p.x, p.y, p.radius)) {
+      damagePlayer(g, atk.damage, atk.id);
+    } else {
+      flowBump(g, 0.12, 'dodge');
+      g.stats.dodges += 1;
+      pushEvent(g, 'dodge', { source: atk.id });
+    }
+  }
+
+  // ── Cards: one outcome function feeds preview AND resolution ──────────────
+
+  function cardOutcome(g, card, tx, ty) {
+    const p = g.player;
+    const e = g.enemy;
+    const out = {
+      card,
+      tx,
+      ty,
+      damage: effectiveDamage(g, card.damage || 0),
+      block: card.block || 0,
+      heal: card.heal || 0,
+      zone: null,
+      aimLine: null,
+      willHit: false,
+    };
+
+    switch (card.type) {
+      case 'projectile':
+        out.aimLine = { x1: p.x, y1: p.y, x2: tx, y2: ty };
+        out.willHit = e.alive && rayHitsCircle(p.x, p.y, tx, ty, e.x, e.y, e.radius + 8);
+        break;
+      case 'cone':
+        out.zone = Shape.cone(p.x, p.y, Math.atan2(ty - p.y, tx - p.x), card.spread, card.aoe);
+        out.willHit = e.alive && circleOverlaps(out.zone, e.x, e.y, e.radius);
+        break;
+      case 'pulse':
+        out.zone = Shape.circle(p.x, p.y, card.aoe);
+        out.willHit = e.alive && circleOverlaps(out.zone, e.x, e.y, e.radius);
+        break;
+      case 'nova':
+        out.zone = Shape.circle(tx, ty, card.aoe);
+        out.willHit = e.alive && circleOverlaps(out.zone, e.x, e.y, e.radius);
+        break;
+      case 'drain':
+        out.zone = Shape.circle(p.x, p.y, card.range);
+        out.willHit = e.alive && circleOverlaps(out.zone, e.x, e.y, e.radius);
+        break;
+      case 'shield':
+        break;
+      default:
+        break;
+    }
+    return out;
+  }
+
+  // Preview is the outcome, verbatim — no separate geometry to drift.
+  function previewCard(g, card, tx, ty) {
+    return cardOutcome(g, card, tx, ty);
   }
 
   function spawnProjectile(g, card, tx, ty) {
@@ -430,59 +560,7 @@
       cardId: card.id,
       life: 2,
     });
-    pushEvent(g, 'fire', { card: card.id, x: p.x, y: p.y });
-  }
-
-  function applyCone(g, card, tx, ty) {
-    const p = g.player;
-    const e = g.enemy;
-    const angle = Math.atan2(ty - p.y, tx - p.x);
-    const dx = e.x - p.x;
-    const dy = e.y - p.y;
-    const dist = Math.hypot(dx, dy);
-    const aToE = Math.atan2(dy, dx);
-    let diff = Math.abs(Math.atan2(Math.sin(aToE - angle), Math.cos(aToE - angle)));
-    if (dist < card.aoe && diff < card.spread) {
-      damageEnemy(g, e, card.damage, diff < 0.15);
-    } else {
-      flowDrop(g, 0.15, 'whiff');
-      pushEvent(g, 'whiff', { card: card.id });
-    }
-    pushEvent(g, 'cone', { x: p.x, y: p.y, angle, aoe: card.aoe, color: card.color });
-  }
-
-  function applyPulse(g, card) {
-    const p = g.player;
-    const e = g.enemy;
-    const dist = Math.hypot(e.x - p.x, e.y - p.y);
-    pushEvent(g, 'pulse_wave', { x: p.x, y: p.y, aoe: card.aoe, color: card.color });
-    if (dist < card.aoe + e.radius) {
-      damageEnemy(g, e, card.damage, dist < card.aoe * 0.5);
-    }
-  }
-
-  function applyNova(g, card, tx, ty) {
-    const e = g.enemy;
-    const dist = Math.hypot(e.x - tx, e.y - ty);
-    pushEvent(g, 'nova', { x: tx, y: ty, aoe: card.aoe, color: card.color });
-    if (dist < card.aoe + e.radius) {
-      damageEnemy(g, e, card.damage, true);
-      g.hitStop = 0.12;
-    } else {
-      flowDrop(g, 0.2, 'whiff');
-    }
-  }
-
-  function applyDrain(g, card) {
-    const e = g.enemy;
-    const dist = Math.hypot(e.x - g.player.x, e.y - g.player.y);
-    if (dist < 160) {
-      damageEnemy(g, e, card.damage, false);
-      g.player.hp = Math.min(g.player.maxHp, g.player.hp + card.heal);
-      pushEvent(g, 'drain', { heal: card.heal });
-    } else {
-      flowDrop(g, 0.15, 'whiff');
-    }
+    pushEvent(g, 'fire', { card: card.id, x: p.x, y: p.y, color: card.color });
   }
 
   function playCard(g, handIndex, tx, ty) {
@@ -497,87 +575,44 @@
     g.discard.push(card);
     g.stats.cardsPlayed += 1;
 
-    const type = card.type;
-    if (type === 'projectile') {
+    const out = cardOutcome(g, card, tx, ty);
+
+    if (card.type === 'projectile') {
       spawnProjectile(g, card, tx, ty);
-    } else if (type === 'cone') {
-      applyCone(g, card, tx, ty);
-    } else if (type === 'shield') {
+    } else if (card.type === 'shield') {
       g.player.shield = card.block;
       g.player.shieldTimer = card.duration;
       pushEvent(g, 'shield', { block: card.block });
       flowBump(g, 0.08, 'shield');
-    } else if (type === 'dash') {
-      const dx = tx - g.player.x;
-      g.player.dodgeDir = dx < 0 ? -1 : 1;
-      g.player.dodgeTimer = card.iframe;
-      g.player.iframe = card.iframe;
-      const move = Math.sign(dx) * 90;
-      g.player.x = Math.max(40, Math.min(W - 40, g.player.x + move));
-      pushEvent(g, 'dash', { dir: g.player.dodgeDir });
-      flowBump(g, 0.1, 'dash');
-    } else if (type === 'pulse') {
-      applyPulse(g, card);
-    } else if (type === 'nova') {
-      applyNova(g, card, tx, ty);
-    } else if (type === 'drain') {
-      applyDrain(g, card);
+    } else {
+      // Zone cards resolve exactly what the preview showed.
+      pushEvent(g, 'zone_cast', {
+        card: card.id,
+        type: card.type,
+        zone: out.zone,
+        color: card.color,
+        x: out.zone.x,
+        y: out.zone.y,
+      });
+      if (out.willHit) {
+        const e = g.enemy;
+        const crit = card.type === 'nova'
+          || (card.type === 'pulse' && Math.hypot(e.x - g.player.x, e.y - g.player.y) < card.aoe * 0.5);
+        damageEnemy(g, e, card.damage, crit);
+        if (card.type === 'nova') g.hitStop = 0.12;
+        if (card.heal) {
+          g.player.hp = Math.min(g.player.maxHp, g.player.hp + card.heal);
+          pushEvent(g, 'drain', { heal: card.heal });
+        }
+      } else if (card.whiffPenalty) {
+        flowDrop(g, card.whiffPenalty, 'whiff');
+        pushEvent(g, 'whiff', { card: card.id });
+      }
     }
-
     return true;
   }
 
-  function previewCard(g, card, tx, ty) {
-    const p = g.player;
-    const e = g.enemy;
-    const prev = {
-      card,
-      tx,
-      ty,
-      damage: effectiveDamage(g, card.damage || 0),
-      block: card.block || 0,
-      shapes: [],
-    };
-
-    if (card.type === 'projectile' || card.type === 'drain') {
-      prev.shapes.push({
-        kind: 'line',
-        x1: p.x,
-        y1: p.y,
-        x2: tx,
-        y2: ty,
-        color: card.color,
-      });
-      const dist = Math.hypot(e.x - tx, e.y - ty);
-      if (card.type === 'drain') {
-        prev.shapes.push({ kind: 'circle', x: p.x, y: p.y, r: 160, color: card.color, alpha: 0.25 });
-      } else {
-        prev.shapes.push({ kind: 'circle', x: e.x, y: e.y, r: e.radius + 12, color: card.color, alpha: 0.4 });
-        prev.willHit = dist < 80;
-      }
-    } else if (card.type === 'cone') {
-      const angle = Math.atan2(ty - p.y, tx - p.x);
-      prev.shapes.push({ kind: 'cone', x: p.x, y: p.y, angle, spread: card.spread, r: card.aoe, color: card.color });
-      const dx = e.x - p.x;
-      const dy = e.y - p.y;
-      const dist = Math.hypot(dx, dy);
-      const aToE = Math.atan2(dy, dx);
-      let diff = Math.abs(Math.atan2(Math.sin(aToE - angle), Math.cos(aToE - angle)));
-      prev.willHit = dist < card.aoe && diff < card.spread;
-    } else if (card.type === 'pulse') {
-      prev.shapes.push({ kind: 'circle', x: p.x, y: p.y, r: card.aoe, color: card.color, alpha: 0.35 });
-      prev.willHit = Math.hypot(e.x - p.x, e.y - p.y) < card.aoe + e.radius;
-    } else if (card.type === 'nova') {
-      prev.shapes.push({ kind: 'circle', x: tx, y: ty, r: card.aoe, color: card.color, alpha: 0.4 });
-      prev.willHit = Math.hypot(e.x - tx, e.y - ty) < card.aoe + e.radius;
-    } else if (card.type === 'shield') {
-      prev.shapes.push({ kind: 'ring', x: p.x, y: p.y, r: p.radius + 18, color: card.color, alpha: 0.5 });
-    } else if (card.type === 'dash') {
-      const dir = tx < p.x ? -1 : 1;
-      prev.shapes.push({ kind: 'dash', x: p.x, y: p.y, dir, color: card.color });
-    }
-    return prev;
-  }
+  // ── Simulation step ────────────────────────────────────────────────────────
 
   function step(g, dt) {
     if (g.paused || g.phase === 'won' || g.phase === 'lost' || g.phase === 'hint') return;
@@ -601,7 +636,6 @@
       if (p.shieldTimer <= 0) p.shield = 0;
     }
     if (p.iframe > 0) p.iframe -= sdt;
-    if (p.dodgeTimer > 0) p.dodgeTimer -= sdt;
     if (p.hitFlash > 0) p.hitFlash -= sdt;
     if (e.hitFlash > 0) e.hitFlash -= sdt;
     if (e.windShake > 0) e.windShake -= sdt;
@@ -614,9 +648,8 @@
 
     if (e.alive) {
       if (e.attack) {
-        e.attack.progress += sdt / e.attack.windup;
-        if (e.attack.progress >= 1 && !e.attack.resolved) {
-          resolveAttack(g, e.attack);
+        const done = stepAttack(g, e.attack, sdt);
+        if (done) {
           e.attack = null;
           e.attackCooldown = e.phase >= 2 ? 0.9 : 1.4;
         }
@@ -660,11 +693,6 @@
         g.projectiles.splice(i, 1);
       }
     }
-
-    if (g.dodgeWindow) {
-      g.dodgeWindow.timer -= sdt;
-      if (g.dodgeWindow.timer <= 0) g.dodgeWindow = null;
-    }
   }
 
   function getTimeScale(g) {
@@ -678,11 +706,10 @@
     return ev;
   }
 
+  // Swipe: the one movement/dodge verb. Move laterally + brief i-frames.
   function playerDodge(g, dir) {
     if (g.phase !== 'playing') return;
     const p = g.player;
-    p.dodgeDir = dir;
-    p.dodgeTimer = 0.4;
     p.iframe = 0.28;
     p.x = Math.max(40, Math.min(W - 40, p.x + dir * 70));
     pushEvent(g, 'swipe_dodge', { dir });
@@ -692,6 +719,10 @@
     W,
     H,
     CARD_DEFS,
+    ATTACK_PATTERNS,
+    Shape,
+    circleOverlaps,
+    rayHitsCircle,
     createGame,
     startFight,
     resetGame,
@@ -699,6 +730,7 @@
     drawCard,
     playCard,
     previewCard,
+    cardOutcome,
     playerDodge,
     getTimeScale,
     drainEvents,
