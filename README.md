@@ -17,3 +17,8 @@ Small, zero-dependency **vertical slices** of all four concepts live in
 **[`prototypes/`](./prototypes/)** — each one lets you feel its core gameplay loop on a phone
 (open [`prototypes/index.html`](./prototypes/index.html) to pick one). They are demos of the
 signature mechanic, not full games.
+
+## Native iOS
+
+**[Hush](./ios/WhiteNoise/)** — a SwiftUI white-noise app with indefinite playback and
+battery-aware volume reduction. Open `ios/WhiteNoise/WhiteNoise.xcodeproj` in Xcode.
